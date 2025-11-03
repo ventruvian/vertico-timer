@@ -42,6 +42,12 @@ Defaults to \\='i\\='."
   :type 'key
   :group 'vertico-timer)
 
+(defcustom vertico-timer-directory-enter-action-key "d"
+  "The key to press to trigger `vertico-directory-enter'.
+Defaults to \\='d\\='."
+  :type 'key
+  :group 'vertico-timer)
+
 (defcustom vertico-timer-timeout-seconds 0.25
   "How many seconds to wait before running `vertico-timer--indexed-action'."
   :type 'number
@@ -132,7 +138,8 @@ A :name keyword can follow a CMD to specify the name for that action."
 
 (vertico-timer-register-actions
  vertico-timer-exit-action-key vertico-exit :name "exit"
- vertico-timer-insert-action-key vertico-insert :name "insert")
+ vertico-timer-insert-action-key vertico-insert :name "insert"
+ vertico-timer-directory-enter-action-key vertico-directory-enter :name "dir")
 
 ;;; Session Toggle
 
