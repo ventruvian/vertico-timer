@@ -64,18 +64,15 @@ Defaults to \\='i\\='."
             map))
 
 (defun vertico-timer--run-indexed-action ()
-  "Call `vertico-exit'.
-Disable `i-vertico/timer-mode' before."
+  "Call `vertico-timer--indexed-action' on the selection.
+Disable `i-vertico/timer-mode' beforehand."
   (vertico-timer-mode -1)
-  (unwind-protect
-      (progn  (setq last-command this-command
-                    this-command vertico-timer--indexed-action)
-              ;; Run `vertico--prepare'
-              (run-hooks 'pre-command-hook)
-              (call-interactively vertico-timer--indexed-action)
-              (run-hooks 'post-command-hook))
-    ;; TODO is this still necessary with `vertico-timer--indexed-action' being buffer local?
-    (setq vertico-timer--indexed-action #'vertico-exit)))
+  (setq last-command this-command
+        this-command vertico-timer--indexed-action)
+  ;; Run `vertico--prepare'
+  (run-hooks 'pre-command-hook)
+  (call-interactively vertico-timer--indexed-action)
+  (run-hooks 'post-command-hook))
 
 ;; Marked with "vertico-" to be recognized by `vertico--prepare'.
 (defun vertico-timer--select-index (_)
