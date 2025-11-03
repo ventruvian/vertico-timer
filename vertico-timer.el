@@ -128,7 +128,7 @@ A :name keyword can follow a CMD to specify the name for that action."
     `(progn ,@(nreverse forms))))
 
 (vertico-timer-register-actions
- vertico-timer-exit-action-key vertico-insert :name "exit"
+ vertico-timer-exit-action-key vertico-exit :name "exit"
  vertico-timer-insert-action-key vertico-insert :name "insert")
 
 ;;; Session Toggle
