@@ -50,6 +50,10 @@ Defaults to \\='i\\='."
 (defvar-local vertico-timer--indexed-action #'vertico-exit
   "Action to run after selecting a candidate with digit keys.")
 
+(defvar vertico-timer--vertico-indexed-default-commands
+  '(vertico-insert vertico-exit vertico-directory-enter)
+  "Helper state for teardown. Same as `vertico-indexed-commands'.")
+
 (defun vertico-timer--set-digit-keys (map cmd)
   "Set all digit keys in MAP to CMD."
   (mapc (lambda (n)
@@ -100,11 +104,13 @@ and used as the command bound in the map. Otherwise a lambda function is used."
                 (setq vertico-timer--indexed-action #',cmd
                       prefix-arg current-prefix-arg
                       this-command 'repeat))))
-    `(keymap-set vertico-timer-mode-map ,key
-      ,(if name
-           `(defun ,(intern (format "vertico-timer-prepare-action-%s" name)) ()
-              ,@body)
-         `(lambda () ,@body)))))
+    `(progn
+       (unless (memq ',cmd vertico-indexed--commands) (push ',cmd vertico-indexed--commands))
+       (keymap-set vertico-timer-mode-map ,key
+                   ,(if name
+                        `(defun ,(intern (format "vertico-timer-prepare-action-%s" name)) ()
+                           ,@body)
+                      `(lambda () ,@body))))))
 
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
@@ -151,7 +157,8 @@ A :name keyword can follow a CMD to specify the name for that action."
 
 (defun vertico-timer--teardown ()
   "Revert digit keys to `self-insert-command' in `vertico-map'."
-  (vertico-timer--set-digit-keys vertico-map #'self-insert-command))
+  (vertico-timer--set-digit-keys vertico-map #'self-insert-command)
+  (setq vertico-indexed--commands vertico-timer--vertico-indexed-default-commands))
 
 ;;;###autoload
 (define-minor-mode vertico-timer-global-mode
