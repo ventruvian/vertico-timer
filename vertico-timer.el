@@ -122,7 +122,7 @@ and used as the command bound in the map. Otherwise a lambda function is used."
   "Register multiple actions using key-cmd pairs.
 ARGS should be an even number of KEY CMD pairs.
 A :name keyword can follow a CMD to specify the name for that action."
-  (unless (eq 0 (% (length args) 2))
+  (unless (zerop (% (length args) 2))
     (error "Arguments must be in KEY CMD pairs (even number of arguments)"))
   (let (forms)
     (while args
