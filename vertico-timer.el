@@ -53,6 +53,10 @@ Defaults to \\='d\\='."
   :type 'number
   :group 'vertico-timer)
 
+(defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
+  "What to index the candidates with.
+Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
+
 (defvar-local vertico-timer--indexed-action #'vertico-exit
   "Action to run after selecting a candidate with digit keys.")
 
@@ -64,7 +68,7 @@ Defaults to \\='d\\='."
   "Set all digit keys in MAP to CMD."
   (mapc (lambda (n)
           (keymap-set map n cmd))
-        '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")))
+        vertico-timer--prefixes))
 
 ;;;###autoload
 (define-minor-mode vertico-timer-mode
@@ -85,7 +89,7 @@ Disable `i-vertico/timer-mode' beforehand."
   (run-hooks 'post-command-hook))
 
 ;; Marked with "vertico-" to be recognized by `vertico--prepare'.
-(defun vertico-timer--select-index (_)
+(defun vertico-timer--select-index (&optional _)
   "In `vertico-indexed-mode' quick select a candidate.
 Must be callled interactively with `digit-argument'."
   (interactive "P")
@@ -102,6 +106,7 @@ Must be callled interactively with `digit-argument'."
 (defmacro vertico-timer-register-action (key cmd &optional name)
   "Bind CMD to KEY in `vertico-timer-mode-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
+
 If NAME is provided it will be prefixed with `vertico-timer-prepare-action-'
 and used as the command bound in the map. Otherwise a lambda function is used."
   (unless (key-valid-p (eval key))
@@ -121,7 +126,10 @@ and used as the command bound in the map. Otherwise a lambda function is used."
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
 ARGS should be an even number of KEY CMD pairs.
-A :name keyword can follow a CMD to specify the name for that action."
+
+If \\=':name name\\=' follows a CMD, a function named
+\(format \"vertico-timer-prepare-action-%s\" name\) will be
+bound to `vertico-timer-mode-map' otherwise a lambda is used."
   (unless (zerop (% (length args) 2))
     (error "Arguments must be in KEY CMD pairs (even number of arguments)"))
   (let (forms)
@@ -158,13 +166,32 @@ A :name keyword can follow a CMD to specify the name for that action."
 
 ;;; Global Mode
 
+(defvar vertico-timer--original-digit-bindings (make-sparse-keymap)
+  "Holds the user's original digit keybindings in `vertico-map' if any.
+These keys are restored when `vertico-timer-global-mode' is disabled.")
+
 (defun vertico-timer--setup ()
   "Hook up timer to digit keys in `vertico-map'."
+  (map-keymap
+   (lambda (key def)
+     (let ((k (single-key-description key)))
+       (when (member k vertico-timer--prefixes)
+         (keymap-set vertico-timer--original-digit-bindings
+                     k def))))
+   vertico-map)
   (vertico-timer--set-digit-keys vertico-map #'vertico-timer--select-index))
 
 (defun vertico-timer--teardown ()
-  "Revert digit keys to `self-insert-command' in `vertico-map'."
-  (vertico-timer--set-digit-keys vertico-map #'self-insert-command)
+  "Revert digit keys in `vertico-map'."
+  ;; unset vertico-timer bindings
+  (mapc (lambda (n)
+          (keymap-unset vertico-map n 'remove))
+        vertico-timer--prefixes)
+  ;; restore previous bindings if any
+  (map-keymap
+   (lambda (key def) (keymap-set vertico-map (single-key-description key) def))
+   vertico-timer--original-digit-bindings)
+  ;; restore vertico-indexed functionality
   (setq vertico-indexed--commands vertico-timer--vertico-indexed-default-commands))
 
 ;;;###autoload
