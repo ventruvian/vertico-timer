@@ -42,12 +42,6 @@ Defaults to \\='i\\='."
   :type 'key
   :group 'vertico-timer)
 
-(defcustom vertico-timer-directory-enter-action-key "d"
-  "The key to press to trigger `vertico-directory-enter'.
-Defaults to \\='d\\='."
-  :type 'key
-  :group 'vertico-timer)
-
 (defcustom vertico-timer-timeout-seconds 0.25
   "How many seconds to wait before running `vertico-timer--indexed-action'."
   :type 'number
@@ -101,7 +95,26 @@ Must be callled interactively with `digit-argument'."
     (run-at-time vertico-timer-timeout-seconds nil
                  #'vertico-timer--run-indexed-action)))
 
+;;:------------------------
 ;;; Actions
+;;:------------------------
+
+;; Default Actions
+
+(keymap-set vertico-timer-mode-map vertico-timer-exit-action-key
+            (defun vertico-timer-prepare-action-exit ()
+              (interactive)
+              (setq vertico-timer--indexed-action #'vertico-exit
+                    prefix-arg current-prefix-arg
+                    this-command 'repeat)))
+(keymap-set vertico-timer-mode-map vertico-timer-insert-action-key
+            (defun vertico-timer-prepare-action-insert ()
+              (interactive)
+              (setq vertico-timer--indexed-action #'vertico-insert
+                    prefix-arg current-prefix-arg
+                    this-command 'repeat)))
+
+;; Custom Actions
 
 (defmacro vertico-timer-register-action (key cmd &optional name)
   "Bind CMD to KEY in `vertico-timer-mode-map'.
@@ -144,27 +157,20 @@ bound to `vertico-timer-mode-map' otherwise a lambda is used."
         (push `(vertico-timer-register-action ,key ,cmd ,name) forms)))
     `(progn ,@(nreverse forms))))
 
-(vertico-timer-register-actions
- vertico-timer-exit-action-key vertico-exit :name "exit"
- vertico-timer-insert-action-key vertico-insert :name "insert"
- vertico-timer-directory-enter-action-key vertico-directory-enter :name "dir")
-
-;;; Session Toggle
-
-(defun vertico-timer-toggle-session ()
-  "Toggle `vertico-indexed-mode' with timer for a single completion session."
-  (interactive)
-  (if vertico-indexed-mode
-      (progn (vertico-indexed-mode -1)
-             (add-hook 'minibuffer-exit-hook
-                       (lambda () (vertico-indexed-mode 1))
-                       nil 'local))
-    (vertico-indexed-mode 1)
-    (add-hook 'minibuffer-exit-hook
-              (lambda () (vertico-indexed-mode -1))
-              nil 'local)))
-
+;;:------------------------
 ;;; Global Mode
+;;:------------------------
+
+;;;###autoload
+(define-minor-mode vertico-timer-global-mode
+  "Select indexed candidates immediately."
+  :group 'vertico-timer
+  :init-value nil
+  :lighter " vt"
+  :global t
+  (if vertico-timer-global-mode
+      (vertico-timer--setup)
+    (vertico-timer--teardown)))
 
 (defvar vertico-timer--original-digit-bindings (make-sparse-keymap)
   "Holds the user's original digit keybindings in `vertico-map' if any.
@@ -194,16 +200,18 @@ These keys are restored when `vertico-timer-global-mode' is disabled.")
   ;; restore vertico-indexed functionality
   (setq vertico-indexed--commands vertico-timer--vertico-indexed-default-commands))
 
-;;;###autoload
-(define-minor-mode vertico-timer-global-mode
-  "Select indexed candidates immediately."
-  :group 'vertico-timer
-  :init-value nil
-  :lighter " vt"
-  :global t
-  (if vertico-timer-global-mode
-      (vertico-timer--setup)
-    (vertico-timer--teardown)))
+(defun vertico-timer-toggle-session ()
+  "Toggle `vertico-indexed-mode' with timer for a single completion session."
+  (interactive)
+  (if vertico-indexed-mode
+      (progn (vertico-indexed-mode -1)
+             (add-hook 'minibuffer-exit-hook
+                       (lambda () (vertico-indexed-mode 1))
+                       nil 'local))
+    (vertico-indexed-mode 1)
+    (add-hook 'minibuffer-exit-hook
+              (lambda () (vertico-indexed-mode -1))
+              nil 'local)))
 
 (provide 'vertico-timer)
 ;;; vertico-timer.el ends here
