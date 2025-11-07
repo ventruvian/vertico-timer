@@ -124,9 +124,8 @@ the user needing to re-register their commands.")
 (defvar-local vertico-timer--action vertico-timer-default-action
   "Action to run after selecting a candidate with digit keys.")
 
-;;:------------------------
+
 ;;; Timer
-;;:------------------------
 
 (defvar-local vertico-timer--timer nil
   "Stores the current timer.")
@@ -173,6 +172,8 @@ Interaction is determined by `vertico-timer-key-interaction'."
   ;; Add to prefix-arg first to be accessible from new timer
   (message ">> called successive digit")
   (call-interactively #'digit-argument)
+
+
   ;; Handle timer interaction
   (pcase vertico-timer-key-interaction
     ('reset (vertico-timer--reset-timer)
@@ -237,11 +238,8 @@ Successive digit keys are handled by `vertico-timer--successive-digit'."
     ;; only ever call the default action, so that is fine.
     (setq this-command #'vertico-timer--first-digit)))
 
-;;:------------------------
+
 ;;; Actions
-;;:------------------------
-
-;; Default Actions
 
 (defun vertico-timer-stop-exit ()
   "Stop the timer and exit with default."
@@ -331,9 +329,8 @@ each of which can be followed by keyword options:
         (push `(vertico-timer-register-action ,key ,cmd ,exit ,name) forms)))
     `(progn ,@(nreverse forms))))
 
-;;:------------------------
+
 ;;; Global Mode
-;;:------------------------
 
 ;;;###autoload
 (define-minor-mode vertico-timer-mode
@@ -391,9 +388,8 @@ These keys are restored when `vertico-timer-mode' is disabled.")
   ;; Restore vertico-indexed state
   (setq vertico-indexed--commands vertico-timer--vertico-indexed-commands-orig))
 
-;;:------------------------
+
 ;;; Utilities
-;;:------------------------
 
 (defun vertico-timer-toggle-in-session ()
   "Toggle `vertico-indexed-mode' for a single completion session.
