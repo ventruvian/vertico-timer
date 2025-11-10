@@ -138,7 +138,6 @@ Timer is stored in `vertico-timer--timer'."
   (setq vertico-timer--timer
         (run-at-time vertico-timer-timeout-seconds
                      nil #'vertico-timer--run-action))
-  (message "timer started")
   (vertico-timer-ticking 1))
 
 (defun vertico-timer--stop-timer ()
@@ -147,13 +146,11 @@ Timer is stored in `vertico-timer--timer'."
   (condition-case er
       (cancel-timer vertico-timer--timer)
     (error (signal 'vertico-timer-no-timer
-                   `(vertico-timer--timer ,er))))
-  (message "timer stopped"))
+                   `(vertico-timer--timer ,er)))))
 
 ;; No need to turn `vertico-timer-ticking' off and on
 (defun vertico-timer--reset-timer ()
   "Reset the current timer."
-  (message "timer reset")
   (cancel-timer vertico-timer--timer)
   (setq vertico-timer--timer
         (run-at-time vertico-timer-timeout-seconds
@@ -165,32 +162,37 @@ Timer is stored in `vertico-timer--timer'."
           (keymap-set map n cmd))
         vertico-timer--prefixes))
 
-(defun vertico-timer--successive-digit (&optional _)
+(defun vertico-timer--successive-digit ()
   "Call `digit-argument' with ARG and interact with timer.
 Interaction is determined by `vertico-timer-key-interaction'."
-  (interactive "P")
+  (interactive)
   ;; Add to prefix-arg first to be accessible from new timer
-  (message ">> called successive digit")
   (call-interactively #'digit-argument)
-
 
   ;; Handle timer interaction
   (pcase vertico-timer-key-interaction
-    ('reset (vertico-timer--reset-timer)
-            (message "> timer reset"))
-    ('none (message "> not interacting with timer"))
+    ('reset (vertico-timer--reset-timer))
+    ('none nil)
     (_ nil)))
 
+(defvar vertico-timer-ticking-map
+  (let ((map (make-sparse-keymap)))
+    (vertico-timer--set-digit-keys map #'vertico-timer--successive-digit)
+    map)
+  "Keymap for `vertico-timer-ticking' minor mode.")
+
 (define-minor-mode vertico-timer-ticking
-  "Restore `digit-argument' call of digit keys and interact with timer.
-Mode is active for the duration of `vertico-timer-timeout-seconds'.
-Timer interaction is determined by `vertico-timer-key-interaction'."
-  :keymap (let ((map (make-sparse-keymap)))
-            (vertico-timer--set-digit-keys map #'vertico-timer--successive-digit)
-            map)
+  "Restore `digit-argument'-like functionality of digit keys.
+Digit keys will add to `prefix-arg' again. Also the interaction
+with the timer will be handled as defined in `vertico-timer-key-interaction'.
+\\{vertico-timer-ticking-map}"
+  :keymap vertico-timer-ticking-map
   (if vertico-timer-ticking
-      (message "ticking mode on")
-    (message "ticking mode off")))
+      (progn
+        (make-local-variable 'minor-mode-overriding-map-alist)
+        (push (cons 'vertico-timer-ticking vertico-timer-ticking-map)
+              minor-mode-overriding-map-alist))
+    (kill-local-variable 'minor-mode-overriding-map-alist)))
 
 (defun vertico-timer--run-action ()
   "Call `vertico-timer--action' on the selection.
@@ -218,24 +220,19 @@ curr-pre-arg:\t%s"
   (call-interactively vertico-timer--action)
   (run-hooks 'post-command-hook))
 
-(defun vertico-timer--first-digit (&optional _)
+(defun vertico-timer--first-digit (&optional arg)
   "In `vertico-indexed-mode' quick select a candidate.
 Should only be callled from a digit keybind.
+ARG is used to set the `prefix-arg'.
 
 Successive digit keys are handled by `vertico-timer--successive-digit'."
-  (interactive "P")
-  (message "> called first-digit")
+  (interactive "p")
   (if (not vertico-indexed-mode)
       ;; User un-toggled using `vertico-timer-toggle-in-session'
       (call-interactively #'self-insert-command)
     (vertico-timer--start-timer)
-    ;; Set prefix-arg and allow for subsequent invocations of `digit-argument'
-    (call-interactively #'digit-argument)
+    (setq prefix-arg arg)
     ;; Ensure that we pass the filter in `vertico-indexed'
-    ;; We could also add `vertico-timer--first-digit',
-    ;; however for some reason the command loop doesn't set
-    ;; this-command=vt--first-digit, also first digit can
-    ;; only ever call the default action, so that is fine.
     (setq this-command #'vertico-timer--first-digit)))
 
 
