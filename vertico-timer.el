@@ -215,7 +215,8 @@ Interaction is determined by `vertico-timer-key-interaction'."
     map)
   "Keymap for `vertico-timer-ticking' minor mode.")
 
-;; TODO Instead of using an explicit timer use the properties of `set-transient-map'.
+;; NOTE It is tempting to ditch the timer completely and
+;; instead use the properties of `set-transient-map':
 ;; - TIMEOUT allows us to have the basic timer functionality
 ;; - ON-EXIT can replace `vertico-timer--run-action'
 ;; - KEEP-PRED allows us to handle `vertico-timer-key-interaction' correctly:
@@ -228,6 +229,10 @@ Interaction is determined by `vertico-timer-key-interaction'."
 ;;   `set-transient-map' which is a function that will terminate the map. Since
 ;;   ON-EXIT will call `vertico-timer--run-action' the behaviour is the same as it
 ;;   is now
+;; However ONE issue remains: ON-EXIT is always called, hence when we "reset" the
+;; timer after a second keypress it would run our action prematurely. We could hack
+;; the intended behaviour together by wrapping ON-EXIT in `(if should-call-p)' but
+;; having an explicit timer may be cleaner.
 (defun vertico-timer--ticking-mode ()
   "Activate `vertico-timer-ticking-map'."
   (prefix-command-update)
@@ -237,21 +242,6 @@ Interaction is determined by `vertico-timer-key-interaction'."
                            (lambda () (message "[map] inactive"));; ON-EXIT
                            "[map] active";; MESSAGE
                            )))
-
-;; (define-minor-mode vertico-timer-ticking
-;;   "Restore `digit-argument'-like functionality of digit keys.
-;; Digit keys will add to `prefix-arg' again. Also the interaction
-;; with the timer will be handled as defined in `vertico-timer-key-interaction'.
-;; \\{vertico-timer-ticking-map}"
-;;   :keymap vertico-timer-ticking-map
-;;   (if vertico-timer-ticking
-;;       (progn
-;;         (message "[ticking] on")
-;;         (make-local-variable 'minor-mode-overriding-map-alist)
-;;         (push (cons 'vertico-timer-ticking vertico-timer-ticking-map)
-;;               minor-mode-overriding-map-alist))
-;;     (message "[ticking] off")
-;;     (kill-local-variable 'minor-mode-overriding-map-alist)))
 
 (defun vertico-timer--run-action ()
   "Call `vertico-timer--action' on the selection.
@@ -274,7 +264,7 @@ curr-pre-arg:\t%s"
   ;; If timer calls this function `this-command' is unset
   (setq this-command (or this-command last-command))
   (message "tc (post): %s" this-command)
-  ;; Run `vertico--prepare'
+  ;; Trigger `vertico--prepare'
   (run-hooks 'pre-command-hook)
   (call-interactively vertico-timer--action)
   (run-hooks 'post-command-hook))
@@ -291,21 +281,6 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
     (vertico-timer--digit-argument arg)
     (setq this-command #'vertico-timer--first-digit)
     (vertico-timer--start-timer)))
-
-;; (defun vertico-timer--first-digit (&optional arg)
-;;   "In `vertico-indexed-mode' quick select a candidate.
-;; Should only be callled from a digit keybind.
-;; ARG is used to set the `prefix-arg'.
-
-;; Successive digit keys are handled by `vertico-timer--successive-digit'."
-;;   (interactive "p")
-;;   (if (not vertico-indexed-mode)
-;;       ;; User un-toggled using `vertico-timer-toggle-in-session'
-;;       (call-interactively #'self-insert-command)
-;;     (vertico-timer--start-timer)
-;;     (setq prefix-arg arg)
-;;     ;; Ensure that we pass the filter in `vertico-indexed'
-;;     (setq this-command #'vertico-timer--first-digit)))
 
 
 ;;; Actions
