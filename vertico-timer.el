@@ -85,7 +85,7 @@ Defaults to \\='i\\='."
   :type 'key
   :group 'vertico-timer)
 
-(defcustom vertico-timer-timeout-seconds 0.25
+(defcustom vertico-timer-timeout-seconds 1
   "How many seconds to wait before running `vertico-timer--action'."
   :type 'number
   :group 'vertico-timer)
