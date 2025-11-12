@@ -274,11 +274,11 @@ Disable `i-vertico/timer-mode' beforehand."
 
   (unwind-protect ;; Trigger `vertico--prepare'
       (progn (run-hooks 'pre-command-hook)
-             (call-interactively vertico-timer--action))
+             (call-interactively vertico-timer--action)
+             (run-hooks 'post-command-hook))
     ;; Reset the default action in case previous one was non-exiting
     ;; Run as unwindform in case the action was cancelled
-    (vertico-timer--set-action vertico-timer-default-action)
-    (run-hooks 'post-command-hook)))
+    (vertico-timer--set-action vertico-timer-default-action)))
 
 (defun vertico-timer--first-digit (arg)
   "Make ARG part of the `prefix-arg' if `vertico-indexed-mode' is non-nil.
