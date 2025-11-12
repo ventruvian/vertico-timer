@@ -116,9 +116,9 @@ Defaults to \\='i\\='."
   :type 'function
   :group 'vertico-timer)
 
-(defvar vertico-timer--prefixes '(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9)
+(defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
   "What to index the candidates with.
-Must be \\='(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9).")
+Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
 
 (defcustom vertico-timer-key-interaction 'reset
   "What happens to the timer after a key was pressed.
@@ -194,7 +194,7 @@ Timer is stored in `vertico-timer--timer'."
 (defun vertico-timer--set-digit-keys (map cmd)
   "Set all digit keys in MAP to CMD."
   (mapc (lambda (n)
-          (define-key map (vector n) cmd))
+          (keymap-set map (single-key-description n) cmd))
         vertico-timer--prefixes))
 
 (defun vertico-timer--digit-argument (arg)
@@ -414,7 +414,7 @@ These keys are restored when `vertico-timer-mode' is disabled.")
 
   ;; Restore previous bindings if any
   (map-keymap
-   (lambda (key def) (define-key vertico-map (vector key) def))
+   (lambda (key def) (keymap-set vertico-map (single-key-description key) def))
    vertico-timer--original-digit-bindings)
 
   ;; Restore vertico-indexed state
