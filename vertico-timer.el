@@ -65,11 +65,22 @@
 ;;    hand access the digit keys and the other access keys for the exit
 ;;    Action.
 ;;
+;;  Action Hint Display
+;;
+;;    By default a hint is displayed in the minibuffer informing about the
+;;    action the timer is going to run. It is displayed only if the default
+;;    action has changed. You can customize that behaviour:
+
+;;    - If you don't like the display of the action-hint in the minibuffer
+;;      you can disable it by unsetting `vertico-timer-action-hint-fstring'
+;;    - If you want the action-hint even for your default action you can do
+;;      (function-put vertico-timer-default-action
+;;                    'vertico-timer-action-hint "exit")
+;;
 ;;; Todos:
 ;;
 ;;  - TODO Don't depend on the user starting `vertico-indexed-mode'
 ;;  - TODO Provide Functions that set exit action before selection
-;;  - TODO Add visual indicator for the currently selected action
 ;;
 ;;; Code:
 
@@ -117,6 +128,18 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
   :type '(radio
           (const :tag "Reset Timer" reset)
           (const :tag "None" none))
+  :group 'vertico-timer)
+
+(defcustom vertico-timer-action-hint-fstring
+  (concat
+   (propertize " | " 'face 'shadow)
+   (propertize "⏲:" 'face 'font-lock-comment-face)
+   (propertize "%s" 'face 'font-lock-constant-face)
+   (propertize " | " 'face 'shadow))
+  "Format string used for the display of the currently active action.
+'%s' will be replaced with the \\='vertico-timer-action-hint property of
+the current value of `vertico-timer--action'."
+  :type '(radio (const :tag "No Action Hint" nil) (string))
   :group 'vertico-timer)
 
 (defvar vertico-timer--vertico-indexed-commands-orig
@@ -249,13 +272,13 @@ Disable `i-vertico/timer-mode' beforehand."
       (vertico-timer--stop-timer)
     (vertico-timer-no-timer nil))
 
-  ;; Trigger `vertico--prepare'
-  (run-hooks 'pre-command-hook)
-  (call-interactively vertico-timer--action)
-  (run-hooks 'post-command-hook)
-
-  ;; Reset the default action in case previous one was non-exiting
-  (setq vertico-timer--action vertico-timer-default-action))
+  (unwind-protect ;; Trigger `vertico--prepare'
+      (progn (run-hooks 'pre-command-hook)
+             (call-interactively vertico-timer--action))
+    ;; Reset the default action in case previous one was non-exiting
+    ;; Run as unwindform in case the action was cancelled
+    (vertico-timer--set-action vertico-timer-default-action)
+    (run-hooks 'post-command-hook)))
 
 (defun vertico-timer--first-digit (arg)
   "Make ARG part of the `prefix-arg' if `vertico-indexed-mode' is non-nil.
@@ -278,20 +301,21 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 (defun vertico-timer-stop-exit ()
   "Stop the timer and exit with default."
   (interactive)
-  (setq vertico-timer--action vertico-timer-default-action)
+  (vertico-timer--set-action vertico-timer-default-action)
   (vertico-timer--run-action))
-
-(keymap-set vertico-timer-ticking-map vertico-timer-exit-action-key
-            #'vertico-timer-stop-exit)
 
 (defun vertico-timer-stop-insert ()
   "Stop the timer and insert the candidate."
   (interactive)
-  (setq vertico-timer--action #'vertico-insert)
+  (vertico-timer--set-action #'vertico-insert)
   (vertico-timer--run-action))
 
+(keymap-set vertico-timer-ticking-map vertico-timer-exit-action-key
+            #'vertico-timer-stop-exit)
 (keymap-set vertico-timer-ticking-map vertico-timer-insert-action-key
             #'vertico-timer-stop-insert)
+
+(function-put 'vertico-insert 'vertico-timer-action-hint "insert")
 
 ;; User-defined Actions
 
@@ -300,22 +324,26 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 KEY can be used to invoke CMD on the candidate before the timer runs out.
 
 If NAME is provided it will be used as the suffix for the name of the
-command bound in the map. Otherwise a name will be generated."
+command bound in the map. Otherwise a name will be generated.
+NAME will also show up in the action-hint overlay."
   (unless (key-valid-p (eval key))
     (error "KEY must satisfy `key-valid-p'"))
   (unless (or (not name) (stringp name))
     (error "Name must be a string or nil"))
   (let ((body `((interactive)
                 (prefix-command-preserve-state)
-                (setq vertico-timer--action #',cmd)
+                (vertico-timer--set-action #',cmd)
                 (vertico-timer--run-action))))
-    (let ((action-fn-sym
-           (if name (intern
-                     (concat "vertico-timer-action-" name))
-             (gensym "vertico-timer-action-"))))
-      `(keymap-set vertico-timer-ticking-map ,key
-        (defun ,action-fn-sym ()
-          ,@body)))))
+    (let* ((suffix (or name (symbol-name (gensym))))
+           (action-fn-sym
+            (intern (concat "vertico-timer-action-" suffix))))
+      `(progn
+         (defun ,action-fn-sym ()
+           ,@body)
+         (function-put ',cmd 'vertico-timer-action-hint
+                       ,(or name (concat "cust-" suffix)))
+         (keymap-set vertico-timer-ticking-map ,key
+                     #',action-fn-sym)))))
 
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
@@ -391,6 +419,42 @@ These keys are restored when `vertico-timer-mode' is disabled.")
 
   ;; Restore vertico-indexed state
   (setq vertico-indexed--commands vertico-timer--vertico-indexed-commands-orig))
+
+
+;;; Display Hint
+
+;; The post-command-hook is only run after vertico-timer--run-action finishes.
+;; Even if the minibuffer stays active then, the action will already be reset.
+;; Hence perform the update of the action hint whenever it is set.
+(defun vertico-timer--set-action (fn)
+  "Change action to be executed to FN.
+Updates action hint if enabled."
+  (setq vertico-timer--action fn)
+  (vertico-timer--exhibit))
+
+(defun vertico-timer--exhibit ()
+  "."
+  (vertico--protect
+   (lambda ()
+     (let ((buffer-undo-list t)) ;; Overlays affect point position and undo list!
+       (vertico-timer--update-action-hint)))))
+
+;; Ways to render hint:
+;; - Make `vertico-count-format' buffer local and change it to include
+;;   propertized string
+;; - Reuse vertico--count-ov with 'after-string prop
+;;   This seems to be cleanest, however the ov in my case inludes an
+;;   invisible "-6s" which adds an unweildly space
+(defun vertico-timer--update-action-hint ()
+  "Indicate the current value of `vertico-timer--action' in the minibuffer."
+  (when (and (bound-and-true-p vertico-timer--action)
+             (bound-and-true-p vertico-timer-action-hint-fstring)
+             (overlayp vertico--count-ov))
+    (when-let ((hint (function-get vertico-timer--action
+                                   'vertico-timer-action-hint)))
+      (overlay-put vertico--count-ov 'after-string
+                   (format vertico-timer-action-hint-fstring
+                           hint)))))
 
 
 ;;; Utilities
