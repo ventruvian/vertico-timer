@@ -133,7 +133,7 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
 (defcustom vertico-timer-action-hint-fstring
   (concat
    (propertize " | " 'face 'shadow)
-   (propertize "⏲:" 'face 'font-lock-comment-face)
+   (propertize "⏲ " 'face 'font-lock-comment-face)
    (propertize "%s" 'face 'font-lock-constant-face)
    (propertize " | " 'face 'shadow))
   "Format string used for the display of the currently active action.
@@ -445,16 +445,21 @@ Updates action hint if enabled."
 ;; - Reuse vertico--count-ov with 'after-string prop
 ;;   This seems to be cleanest, however the ov in my case inludes an
 ;;   invisible "-6s" which adds an unweildly space
+;; - Also if another package uses this property there'll be conflicts
 (defun vertico-timer--update-action-hint ()
   "Indicate the current value of `vertico-timer--action' in the minibuffer."
   (when (and (bound-and-true-p vertico-timer--action)
              (bound-and-true-p vertico-timer-action-hint-fstring)
              (overlayp vertico--count-ov))
-    (when-let ((hint (function-get vertico-timer--action
-                                   'vertico-timer-action-hint)))
-      (overlay-put vertico--count-ov 'after-string
-                   (format vertico-timer-action-hint-fstring
-                           hint)))))
+    (if-let ((hint (function-get vertico-timer--action
+                                 'vertico-timer-action-hint)))
+        (overlay-put vertico--count-ov 'after-string
+                     (format vertico-timer-action-hint-fstring
+                             hint))
+      ;; Unset hint when default action has none
+      (when (overlay-get vertico--count-ov 'after-string)
+        (overlay-put vertico--count-ov 'after-string
+                     nil)))))
 
 
 ;;; Utilities
