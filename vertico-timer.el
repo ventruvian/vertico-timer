@@ -432,13 +432,6 @@ Updates action hint if enabled."
   (setq vertico-timer--action fn)
   (vertico-timer--exhibit))
 
-(defun vertico-timer--exhibit ()
-  "."
-  (vertico--protect
-   (lambda ()
-     (let ((buffer-undo-list t)) ;; Overlays affect point position and undo list!
-       (vertico-timer--update-action-hint)))))
-
 ;; Ways to render hint:
 ;; - Make `vertico-count-format' buffer local and change it to include
 ;;   propertized string
@@ -460,6 +453,25 @@ Updates action hint if enabled."
       (when (overlay-get vertico--count-ov 'after-string)
         (overlay-put vertico--count-ov 'after-string
                      nil)))))
+
+(defun vertico-timer--exhibit ()
+  "Update the action hint with `vertico--protect'."
+  (vertico--protect
+   (lambda ()
+     (let ((buffer-undo-list t)) ;; Overlays affect point position and undo list!
+       (vertico-timer--update-action-hint)))))
+
+(defun vertico-timer--enable-update-hint-h ()
+  "Hook to set up the action hint once."
+  (vertico-timer--exhibit)
+  (remove-hook 'post-command-hook #'vertico-timer--enable-update-hint-h 'local))
+
+(cl-defmethod vertico--setup :after
+  (&context (vertico-timer-mode (eql t) vertico-indexed-mode (eql t)))
+  "Setup the action hint display."
+  ;; Vertico's overlay should be present already so we hook in after
+  ;; Since updates to the overlay are done jit the hook will remove itself.
+  (add-hook 'post-command-hook #'vertico-timer--enable-update-hint-h 1 'local))
 
 
 ;;; Utilities
