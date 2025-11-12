@@ -56,18 +56,28 @@
 ;;     It shouldn't feel like that though, since you spend the same time
 ;;     idle as after a single-digit candidate selection.
 ;;
+;;  Advice:
+;;
+;;  - If your keyboard (-layout) allows to access digit keys with one hand
+;;    (i.e. if you have a number block) consider binding custom actions to
+;;    keys accessible with the other hand.
+;;    'Speed' and 'Compromise' workflows greatly benefit from having one
+;;    hand access the digit keys and the other access keys for the exit
+;;    Action.
+;;
 ;;; Todos:
 ;;
 ;;  - TODO Don't depend on the user starting `vertico-indexed-mode'
 ;;  - TODO Provide Functions that set exit action before selection
-;;  - TODO Support non-exiting actions (Make 2 macros to register fns)
-;;  - TODO Add highlighting to selected candidate, this extra visual
-;;         would be particularly helpful in'Versatile' flow.
+;;  - TODO Add visual indicator for the currently selected action
 ;;
 ;;; Code:
 
 (require 'vertico)
 (require 'vertico-indexed)
+
+
+;;; Variables
 
 (defgroup vertico-timer nil
   "Select indexed candidates immediately."
@@ -85,7 +95,7 @@ Defaults to \\='i\\='."
   :type 'key
   :group 'vertico-timer)
 
-(defcustom vertico-timer-timeout-seconds 1
+(defcustom vertico-timer-timeout-seconds 0.5
   "How many seconds to wait before running `vertico-timer--action'."
   :type 'number
   :group 'vertico-timer)
@@ -95,12 +105,9 @@ Defaults to \\='i\\='."
   :type 'function
   :group 'vertico-timer)
 
-(defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
+(defvar vertico-timer--prefixes '(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9)
   "What to index the candidates with.
-Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
-
-(defvar-local vertico-timer--action #'vertico-exit
-  "Action to run after selecting a candidate with digit keys.")
+Must be \\='(?0 ?1 ?2 ?3 ?4 ?5 ?6 ?7 ?8 ?9).")
 
 (defcustom vertico-timer-key-interaction 'reset
   "What happens to the timer after a key was pressed.
@@ -114,14 +121,7 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
 
 (defvar vertico-timer--vertico-indexed-commands-orig
   vertico-indexed--commands
-  "Helper state for teardown. Same as `vertico-indexed--commands'.")
-
-(defvar vertico-timer--commands (list vertico-timer-default-action #'vertico-timer--first-digit)
-  "Holds commands recognized by vertico-timer.
-Will be appended to `vertico-indexed--commands' during setup.
-Since `vertico-indexed--commands' will be reset during teardown
-this variable ensures that the mode can be reentered without
-the user needing to re-register their commands.")
+  "Helper state for teardown. Original value of `vertico-indexed--commands'.")
 
 (defvar-local vertico-timer--action vertico-timer-default-action
   "Action to run after selecting a candidate with digit keys.")
@@ -132,13 +132,13 @@ the user needing to re-register their commands.")
 (defvar-local vertico-timer--timer nil
   "Stores the current timer.")
 
-(define-error 'vertico-timer-no-timer "Timer wasn't found")
-
 (defvar-local vertico-timer--started-at nil
   "When the timer was started.")
 
 (defvar-local vertico-timer--exit-map-fn nil
   "Call this function to exit the transient keymap.")
+
+(define-error 'vertico-timer-no-timer "No timer found")
 
 (defun vertico-timer--start-timer ()
   "Start timer with `vertico-timer-timeout-seconds'.
@@ -146,36 +146,32 @@ Timer is stored in `vertico-timer--timer'."
   (setq vertico-timer--started-at (current-time))
   (setq vertico-timer--timer
         (run-at-time vertico-timer-timeout-seconds
-                     nil #'vertico-timer--run-action))
-  ;; (vertico-timer-ticking 1)
-  )
+                     nil #'vertico-timer--run-action)))
 
 (defun vertico-timer--stop-timer ()
   "Cancel the current timer."
-  ;; (vertico-timer-ticking -1)
   (funcall vertico-timer--exit-map-fn)
-  (message "[timer] elapsed: %fs"
-           (float-time
-            (time-subtract
-             nil vertico-timer--started-at)))
   (condition-case er
       (cancel-timer vertico-timer--timer)
-    (error (signal 'vertico-timer-no-timer
-                   `(vertico-timer--timer ,er)))))
+    (wrong-type-argument
+     (signal 'vertico-timer-no-timer
+             (apply #'list 'cancel-timer vertico-timer--timer er)))))
 
 ;; No need to turn `vertico-timer--ticking-mode' off and on
 (defun vertico-timer--reset-timer ()
   "Reset the current timer."
-  (message "[ticking] reset")
   (cancel-timer vertico-timer--timer)
   (setq vertico-timer--timer
         (run-at-time vertico-timer-timeout-seconds
                      nil #'vertico-timer--run-action)))
 
+
+;;; Digit Keys
+
 (defun vertico-timer--set-digit-keys (map cmd)
   "Set all digit keys in MAP to CMD."
   (mapc (lambda (n)
-          (keymap-set map n cmd))
+          (define-key map (vector n) cmd))
         vertico-timer--prefixes))
 
 (defun vertico-timer--digit-argument (arg)
@@ -194,6 +190,8 @@ Instead of `universal-argument-map' activates `vertico-timer-ticking-map'."
                             (if (zerop digit) '- (- digit)))
                            (t
                             digit))))
+  ;; Highlight selected candidate
+  (vertico--goto prefix-arg)
   (vertico-timer--ticking-mode))
 
 (defun vertico-timer--successive-digit (arg)
@@ -215,7 +213,7 @@ Interaction is determined by `vertico-timer-key-interaction'."
     map)
   "Keymap for `vertico-timer-ticking' minor mode.")
 
-;; NOTE It is tempting to ditch the timer completely and
+;; NOTE It is tempting to ditch the explicit timer completely and
 ;; instead use the properties of `set-transient-map':
 ;; - TIMEOUT allows us to have the basic timer functionality
 ;; - ON-EXIT can replace `vertico-timer--run-action'
@@ -237,37 +235,27 @@ Interaction is determined by `vertico-timer-key-interaction'."
   "Activate `vertico-timer-ticking-map'."
   (prefix-command-update)
   (setq vertico-timer--exit-map-fn
-        (set-transient-map vertico-timer-ticking-map
-                           nil ;; KEEP-PRED
-                           (lambda () (message "[map] inactive"));; ON-EXIT
-                           "[map] active";; MESSAGE
-                           )))
+        (set-transient-map vertico-timer-ticking-map)))
 
 (defun vertico-timer--run-action ()
   "Call `vertico-timer--action' on the selection.
 Disable `i-vertico/timer-mode' beforehand."
-  ;; Disable `vertico-timer-ticking' mode
-  ;; Since this is also called by the timer we swallow the error
+  (prefix-command-preserve-state)
+
+  ;; Since this fn is called by the timer I would've expected
+  ;; `cancel-timer' to fail. This is in fact not the case. In
+  ;; case that ever changes we swallow the expected error.
   (condition-case _
       (vertico-timer--stop-timer)
     (vertico-timer-no-timer nil))
-  (message "
-this-command:\t%s
-real-this-cmd:\t%s
-last-command:\t%s
-real-last-cmd:\t%s
-prefix-arg:\t%s
-curr-pre-arg:\t%s"
-           this-command real-this-command
-           last-command real-last-command
-           prefix-arg current-prefix-arg)
-  ;; If timer calls this function `this-command' is unset
-  (setq this-command (or this-command last-command))
-  (message "tc (post): %s" this-command)
+
   ;; Trigger `vertico--prepare'
   (run-hooks 'pre-command-hook)
   (call-interactively vertico-timer--action)
-  (run-hooks 'post-command-hook))
+  (run-hooks 'post-command-hook)
+
+  ;; Reset the default action in case previous one was non-exiting
+  (setq vertico-timer--action vertico-timer-default-action))
 
 (defun vertico-timer--first-digit (arg)
   "Make ARG part of the `prefix-arg' if `vertico-indexed-mode' is non-nil.
@@ -285,13 +273,13 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 
 ;;; Actions
 
+;; Don't use the macro for the default actions to prevent naming conflicts
+
 (defun vertico-timer-stop-exit ()
   "Stop the timer and exit with default."
   (interactive)
-  (setq vertico-timer--action #'vertico-exit)
+  (setq vertico-timer--action vertico-timer-default-action)
   (vertico-timer--run-action))
-
-(push 'vertico-timer-stop-exit vertico-timer--commands)
 
 (keymap-set vertico-timer-ticking-map vertico-timer-exit-action-key
             #'vertico-timer-stop-exit)
@@ -302,18 +290,14 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
   (setq vertico-timer--action #'vertico-insert)
   (vertico-timer--run-action))
 
-(push 'vertico-timer-stop-insert vertico-timer--commands)
-
 (keymap-set vertico-timer-ticking-map vertico-timer-insert-action-key
             #'vertico-timer-stop-insert)
 
-;; Custom Actions
+;; User-defined Actions
 
-(defmacro vertico-timer-register-action (key cmd &optional exit name)
+(defmacro vertico-timer-register-action (key cmd &optional name)
   "Bind CMD to KEY in `vertico-timer-ticking-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
-
-A non-nil EXIT will cause the action to cancel the timer and run immediately.
 
 If NAME is provided it will be used as the suffix for the name of the
 command bound in the map. Otherwise a name will be generated."
@@ -321,35 +305,22 @@ command bound in the map. Otherwise a name will be generated."
     (error "KEY must satisfy `key-valid-p'"))
   (unless (or (not name) (stringp name))
     (error "Name must be a string or nil"))
-  (let ((body (if exit
-                  `((interactive "P")
-                    (vertico-timer--stop-timer)
-                    (setq vertico-timer--action #'vertico-exit)
-                    (vertico-timer--run-action))
-                `((interactive "P") ; this shouldn't actually need the prefix
-                  (setq vertico-timer--action #',cmd)))))
-    (let ((prepare-fn-sym
+  (let ((body `((interactive)
+                (prefix-command-preserve-state)
+                (setq vertico-timer--action #',cmd)
+                (vertico-timer--run-action))))
+    (let ((action-fn-sym
            (if name (intern
-                     (concat "vertico-timer-" (unless exit "prepare-")
-                             "action-" name))
-             (gensym (concat "vertico-timer-"
-                             (unless exit "prepare-") "action-" )))))
-      `(progn
-         (unless (memq ',prepare-fn-sym vertico-timer--commands)
-           (push ',prepare-fn-sym vertico-timer--commands))
-         (unless (memq ',prepare-fn-sym vertico-indexed--commands)
-           (push ',prepare-fn-sym vertico-indexed--commands))
-         (keymap-set vertico-timer-ticking-map ,key
-                     (defun ,prepare-fn-sym (&optional arg)
-                       ,@body))))))
+                     (concat "vertico-timer-action-" name))
+             (gensym "vertico-timer-action-"))))
+      `(keymap-set vertico-timer-ticking-map ,key
+        (defun ,action-fn-sym ()
+          ,@body)))))
 
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
 ARGS should be an even number of KEY CMD pairs
 each of which can be followed by keyword options:
-
-  - ':exit': If option is non-nil CMD will be called right away,
-     the timer will be cancelled.
 
   - ':name': The function bound in `vertico-timer-ticking-map'
      will be suffixed with the value of this option.
@@ -360,19 +331,16 @@ each of which can be followed by keyword options:
     (while args
       (let* ((key (pop args))
              (cmd (pop args))
-             exit name)
-        (when (and args (eq (car args) :exit))
-          (pop args)
-          (setq exit (pop args)))
+             name)
         ;; Check if next argument is :name
         (when (and args (eq (car args) :name))
           (pop args)
           (setq name (pop args)))
-        (push `(vertico-timer-register-action ,key ,cmd ,exit ,name) forms)))
+        (push `(vertico-timer-register-action ,key ,cmd ,name) forms)))
     `(progn ,@(nreverse forms))))
 
 
-;;; Global Mode
+;;; Mode
 
 ;;;###autoload
 (define-minor-mode vertico-timer-mode
@@ -401,15 +369,9 @@ These keys are restored when `vertico-timer-mode' is disabled.")
                      k def))))
    vertico-map)
 
-  ;; Ensure `vertico-timer--commands' includes default action,
-  ;; even if modifiey by user
-  (unless (memq vertico-timer-default-action vertico-timer--commands)
-    (push vertico-timer-default-action vertico-timer--commands))
-
-  ;; Ensure all registered actions pass the vertico-indexed filter,
-  (dolist (cmd vertico-timer--commands)
-    (unless (memq cmd vertico-indexed--commands)
-      (push cmd vertico-indexed--commands)))
+  ;; Ensure `vertico-timer--first-digit' passes the vertico-indexed filter
+  (unless (memq 'vertico-timer--first-digit vertico-indexed--commands)
+    (push 'vertico-timer--first-digit vertico-indexed--commands))
 
   ;; Bind digit keys
   (vertico-timer--set-digit-keys vertico-map #'vertico-timer--first-digit))
@@ -424,7 +386,7 @@ These keys are restored when `vertico-timer-mode' is disabled.")
 
   ;; Restore previous bindings if any
   (map-keymap
-   (lambda (key def) (keymap-set vertico-map (single-key-description key) def))
+   (lambda (key def) (define-key vertico-map (vector key) def))
    vertico-timer--original-digit-bindings)
 
   ;; Restore vertico-indexed state
