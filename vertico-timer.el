@@ -26,10 +26,13 @@
 ;;  to change the exit action (like `embark-act') _after_ candidate
 ;;  selection with very simple keys. Since the selected action is not
 ;;  executed before the timer runs out (unless you intervene) an
-;;  additional keymap is available where no keys are needed for input
-;;  anymore.
+;;  empty keymap is available where no keys are needed for insertion.
 ;;
-;;  There are 3 main workflows which depend on the settings:
+;;  You use digits to select a candidate, then choose the exit action.
+;;  With this usage pattern there there are 3 main workflows which
+;;  depend on the following settings. Additionally there is a way of
+;;  using vertico-timer with the “wrong” foot first, goofy.
+;;
 ;;  - `vertico-timer-timeout-seconds'
 ;;    Determines how long the timer runs.
 ;;  - `vertico-timer-key-interaction'
@@ -55,10 +58,18 @@
 ;;     to “wait” for the default action on two-digit candidates.
 ;;     It shouldn't feel like that though, since you spend the same time
 ;;     idle as after a single-digit candidate selection.
+;;  4. 'Goofy': Choose the action before you start the timer by pressing
+;;     a digit key. You probably have to make do with keychords now since
+;;     letter keys are needed for input, but sometimes it may be a better
+;;     mental model of the operation at hand, when you know already what
+;;     you want to do, but not to whome spotted the candidate yet. I.e.
+;;     you may already know you want to `embark-become' into another
+;;     command but haven't spotted the candidate yet. This flow is of
+;;     course compatible with all the others. You can always go goofy.
 ;;
 ;;  Advice:
 ;;
-;;  - If your keyboard (-layout) allows to access digit keys with one hand
+;;  - If your keyboard (-layout) allows accessing digit keys with one hand
 ;;    (i.e. if you have a number block) consider binding custom actions to
 ;;    keys accessible with the other hand.
 ;;    'Speed' and 'Compromise' workflows greatly benefit from having one
@@ -75,12 +86,13 @@
 ;;      you can disable it by unsetting `vertico-timer-action-hint-fstring'
 ;;    - If you want the action-hint even for your default action you can do
 ;;      (function-put vertico-timer-default-action
-;;                    'vertico-timer-action-hint "exit")
+;;                    'vertico-timer-action-hint "default")
 ;;
 ;;; Todos:
 ;;
 ;;  - TODO Don't depend on the user starting `vertico-indexed-mode'
-;;  - TODO Provide Functions that set exit action before selection
+;;  - TODO Don't use variables for keys for default actions
+;;  - TODO Provide a toggle for all registered actions
 ;;
 ;;; Code:
 
@@ -298,16 +310,26 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 
 ;; Don't use the macro for the default actions to prevent naming conflicts
 
+(defun vertico-timer-prep-default-action ()
+  "Prepare `vertico-timer--action' for the default action."
+  (interactive)
+  (vertico-timer--set-action vertico-timer-default-action))
+
 (defun vertico-timer-stop-exit ()
   "Stop the timer and exit with default."
   (interactive)
-  (vertico-timer--set-action vertico-timer-default-action)
+  (vertico-timer-prep-default-action)
   (vertico-timer--run-action))
+
+(defun vertico-timer-prep-insert-action ()
+  "Prepare `vertico-timer--action' for the insert action."
+  (interactive)
+  (vertico-timer--set-action #'vertico-insert))
 
 (defun vertico-timer-stop-insert ()
   "Stop the timer and insert the candidate."
   (interactive)
-  (vertico-timer--set-action #'vertico-insert)
+  (vertico-timer-prep-insert-action)
   (vertico-timer--run-action))
 
 (keymap-set vertico-timer-ticking-map vertico-timer-exit-action-key
@@ -319,15 +341,20 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 
 ;; User-defined Actions
 
-(defmacro vertico-timer-register-action (key cmd &optional name)
+(defmacro vertico-timer-register-action (key cmd &optional name prep-key)
   "Bind CMD to KEY in `vertico-timer-ticking-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
 
 If NAME is provided it will be used as the suffix for the name of the
 command bound in the map. Otherwise a name will be generated.
-NAME will also show up in the action-hint overlay."
+NAME will also show up in the action-hint overlay.
+
+If PREP-KEY is provided an additional command will be bound `vertico-map'.
+Invoking that command will set `vertico-timer--action' ahead of keypresses."
   (unless (key-valid-p (eval key))
-    (error "KEY must satisfy `key-valid-p'"))
+    (error "KEY %s doesn't satisfy `key-valid-p'" key))
+  (unless (key-valid-p (eval prep-key))
+    (error "KEY %s doesn't satisfy `key-valid-p'" prep-key))
   (unless (or (not name) (stringp name))
     (error "Name must be a string or nil"))
   (let ((body `((interactive)
@@ -336,14 +363,22 @@ NAME will also show up in the action-hint overlay."
                 (vertico-timer--run-action))))
     (let* ((suffix (or name (symbol-name (gensym))))
            (action-fn-sym
-            (intern (concat "vertico-timer-action-" suffix))))
+            (intern (concat "vertico-timer-action-" suffix)))
+           (prep-fn-sym
+            (intern (concat "vertico-timer-prep-action-" suffix))))
       `(progn
+         ,(when prep-key
+            `(defun ,prep-fn-sym ()
+               (interactive)
+               (vertico-timer--set-action #',cmd)))
          (defun ,action-fn-sym ()
            ,@body)
          (function-put ',cmd 'vertico-timer-action-hint
                        ,(or name (concat "cust-" suffix)))
          (keymap-set vertico-timer-ticking-map ,key
-                     #',action-fn-sym)))))
+                     #',action-fn-sym)
+         ,(when prep-key
+            `(keymap-set vertico-map ,prep-key #',prep-fn-sym))))))
 
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
@@ -352,19 +387,25 @@ each of which can be followed by keyword options:
 
   - ':name': The function bound in `vertico-timer-ticking-map'
      will be suffixed with the value of this option.
-     If nil a lambda will be used instead."
+     If nil a lambda will be used instead. This is also the name
+     to appear in the action hint.
+  - ':prep-key': An additional command will be bound to this key
+     in `vertico-map'. This command will allow to set
+     `vertico-timer--action' before the timer starts."
   (unless (zerop (% (length args) 2))
     (error "Arguments must be in KEY CMD pairs (even number of arguments)"))
   (let (forms)
     (while args
       (let* ((key (pop args))
              (cmd (pop args))
-             name)
+             name prep-key)
         ;; Check if next argument is :name
         (when (and args (eq (car args) :name))
-          (pop args)
-          (setq name (pop args)))
-        (push `(vertico-timer-register-action ,key ,cmd ,name) forms)))
+          (pop args) (setq name (pop args)))
+        ;; Check if next argument is :prep-key
+        (when (and args (eq (car args) :prep-key))
+          (pop args) (setq prep-key (pop args)))
+        (push `(vertico-timer-register-action ,key ,cmd ,name ,prep-key) forms)))
     `(progn ,@(nreverse forms))))
 
 
