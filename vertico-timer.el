@@ -106,18 +106,6 @@
   "Select indexed candidates immediately."
   :group 'external)
 
-(defcustom vertico-timer-exit-action-key "RET"
-  "The key to press to trigger `vertico-exit'.
-Defaults to \\='RET\\='."
-  :type 'key
-  :group 'vertico-timer)
-
-(defcustom vertico-timer-insert-action-key "i"
-  "The key to press to trigger `vertico-insert'.
-Defaults to \\='i\\='."
-  :type 'key
-  :group 'vertico-timer)
-
 (defcustom vertico-timer-timeout-seconds 0.5
   "How many seconds to wait before running `vertico-timer--action'."
   :type 'number
@@ -245,6 +233,8 @@ Interaction is determined by `vertico-timer-key-interaction'."
 (defvar vertico-timer-ticking-map
   (let ((map (make-sparse-keymap)))
     (vertico-timer--set-digit-keys map #'vertico-timer--successive-digit)
+    (keymap-set map "RET" #'vertico-timer-stop-exit)
+    (keymap-set map "i" #'vertico-timer-stop-insert)
     map)
   "Keymap for `vertico-timer-ticking' minor mode.")
 
@@ -332,10 +322,6 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
   (vertico-timer-prep-insert-action)
   (vertico-timer--run-action))
 
-(keymap-set vertico-timer-ticking-map vertico-timer-exit-action-key
-            #'vertico-timer-stop-exit)
-(keymap-set vertico-timer-ticking-map vertico-timer-insert-action-key
-            #'vertico-timer-stop-insert)
 
 (function-put 'vertico-insert 'vertico-timer-action-hint "insert")
 
