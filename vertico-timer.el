@@ -79,14 +79,13 @@
 ;;  Action Hint Display
 ;;
 ;;    By default a hint is displayed in the minibuffer informing about the
-;;    action the timer is going to run. It is displayed only if the default
-;;    action has changed. You can customize that behaviour:
+;;    action the timer is going to run. You can customize that behaviour:
 
 ;;    - If you don't like the display of the action-hint in the minibuffer
 ;;      you can disable it by unsetting `vertico-timer-action-hint-fstring'
-;;    - If you want the action-hint even for your default action you can do
-;;      (function-put vertico-timer-default-action
-;;                    'vertico-timer-action-hint "default")
+;;      When you cycle the available actions it will be shown regardless.
+;;    - If you want the hint displayed only if the default action has
+;;      changed unset `vertico-timer-default-action-hint'
 ;;
 ;;; Todos:
 ;;
@@ -114,6 +113,20 @@
 (defcustom vertico-timer-default-action #'vertico-exit
   "Default Action to run after selecting a candidate with digit keys."
   :type 'function
+  :group 'vertico-timer)
+
+(defcustom vertico-timer-default-action-hint "default"
+  "Hint to display in the action hint overlay when default action is active."
+  :type '(radio
+          (const :tag "Hide hint when default action is active")
+          string)
+  :group 'vertico-timer)
+
+(defcustom vertico-timer-insert-action-hint "insert"
+  "Hint to display in the action hint overlay when default action is active."
+  :type '(radio
+          (const :tag "Hide hint when insert action is active")
+          string)
   :group 'vertico-timer)
 
 (defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
@@ -322,9 +335,6 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
   (vertico-timer-prep-insert-action)
   (vertico-timer--run-action))
 
-
-(function-put 'vertico-insert 'vertico-timer-action-hint "insert")
-
 ;; User-defined Actions
 
 (defmacro vertico-timer-register-action (key cmd &optional name prep-key)
@@ -428,8 +438,15 @@ These keys are restored when `vertico-timer-mode' is disabled.")
   (unless (memq 'vertico-timer--first-digit vertico-indexed--commands)
     (push 'vertico-timer--first-digit vertico-indexed--commands))
 
+  ;; Set display hint for default actions
+  (function-put vertico-timer-default-action
+                'vertico-timer-action-hint vertico-timer-default-action-hint)
+  (function-put 'vertico-insert
+                'vertico-timer-action-hint vertico-timer-insert-action-hint)
+
   ;; Bind digit keys
   (vertico-timer--set-digit-keys vertico-map #'vertico-timer--first-digit))
+
 
 (defun vertico-timer--teardown ()
   "Revert digit keys in `vertico-map'."
