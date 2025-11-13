@@ -361,10 +361,7 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 ;; User-defined Actions
 
 (defvar vertico-timer--user-registered-actions nil
-  "A list of actions registered via `vertico-timer-register-action'.
-Each entry is a plist with keys as defined in `vertico-timer-register-actions'.
-The additional keys: `:cmd' indicates the symbol of the action itself
-and `:key' the key it has been bound to in `vertico-timer-ticking-map'.")
+  "Actions registered via `vertico-timer-register-action'.")
 
 (defmacro vertico-timer-register-action (key cmd &optional name prep-key)
   "Bind CMD to KEY in `vertico-timer-ticking-map'.
@@ -394,10 +391,8 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
            (prep-fn-sym
             (intern (concat "vertico-timer-prep-action-" suffix))))
       `(progn
-         (unless (seq-some (lambda (action) (eq #',cmd (plist-get action :cmd)))
-                           vertico-timer--user-registered-actions nil)
-           (push '(:cmd ,cmd :key ,key :name ,name :prep-key ,prep-key)
-                 vertico-timer--user-registered-actions))
+         (unless (memq #',cmd vertico-timer--user-registered-actions)
+           (push #',cmd vertico-timer--user-registered-actions))
          ,(when prep-key
             `(defun ,prep-fn-sym ()
                (interactive)
@@ -624,7 +619,7 @@ This will also inhibit all funcionality from `vertico-timer-mode'."
     (ring-insert ring vertico-timer-default-action)
     (ring-insert ring #'vertico-insert)
     (dolist (action vertico-timer--user-registered-actions)
-      (ring-insert ring (plist-get action :cmd)))
+      (ring-insert ring action))
     ring))
 
 (defun vertico-timer--cycle-actions (&optional reverse)
