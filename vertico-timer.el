@@ -454,14 +454,11 @@ each of which can be followed by keyword options:
   ;; Store original commands allowed by vertico-indexed-mode
   (push `(:vertico-indexed--commands . ,vertico-indexed--commands)
         vertico-timer--state-to-restore)
-  ;; Store original digit keybindings in vertico-map
-  ;; At this point in time user defined keybindngs
-  (map-keymap
-   (lambda (key def)
-     (let ((k (single-key-description key)))
-       (when (member k vertico-timer--prefixes)
-         (push (cons k def) (alist-get :vertico-map vertico-timer--state-to-restore)))))
-   vertico-map)
+  ;; If original digit keybindings exist in vertico-map remeber it
+  (dolist (prefix vertico-timer--prefixes)
+    (when-let ((def (lookup-key vertico-map prefix)))
+      (push (cons prefix def)
+            (alist-get :vertico-map vertico-timer--state-to-restore))))
   ;; Store whether vertico-indexed-mode is active
   (setf (alist-get :vertico-indexed-mode vertico-timer--state-to-restore)
         vertico-indexed-mode))
