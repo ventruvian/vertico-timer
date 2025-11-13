@@ -69,6 +69,12 @@
 ;;
 ;;  Advice:
 ;;
+;;  - You may want to ignore custom exit actions at first and only quick
+;;    select candidates with the default action, this is, after all, the
+;;    main use-case and getting keys for exit actions right isn't trivial.
+;;  - That said if you do get into exit actions: Take some time to consider
+;;    the keys you bind. The value of this package drastically depends on
+;;    how comfortably you can type a key succesion. One tip regarding that:
 ;;  - If your keyboard (-layout) allows accessing digit keys with one hand
 ;;    (i.e. if you have a number block) consider binding custom actions to
 ;;    keys accessible with the other hand.
@@ -87,16 +93,24 @@
 ;;    - If you want the hint displayed only if the default action has
 ;;      changed unset `vertico-timer-default-action-hint'
 ;;
+;;  Cycle the Active Action:
+;;
+;;    You can cycle the active action with the commands:
+;;    `vertico-timer-cycle-actions-forward'
+;;    `vertico-timer-cycle-actions-backward'
+;;    This is intended to be done before selecting a candidate, but it
+;;    also works after. Cycling will force the display of the action hint
+;;    for the completion session even if it is disabled otherwise.
+;;
 ;;; Todos:
 ;;
 ;;  - TODO Don't depend on the user starting `vertico-indexed-mode'
-;;  - TODO Don't use variables for keys for default actions
-;;  - TODO Provide a toggle for all registered actions
 ;;
 ;;; Code:
 
 (require 'vertico)
 (require 'vertico-indexed)
+(require 'ring)
 
 
 ;;; Variables
@@ -143,16 +157,21 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
           (const :tag "None" none))
   :group 'vertico-timer)
 
-(defcustom vertico-timer-action-hint-fstring
+(defvar vertico-timer-action-hint-default-fstring
   (concat
    (propertize " | " 'face 'shadow)
    (propertize "⏲ " 'face 'font-lock-comment-face)
    (propertize "%s" 'face 'font-lock-constant-face)
    (propertize " | " 'face 'shadow))
+  "Default action hint format.
+Fallback for when the user has disabled the hint but wants to cycle actions.")
+
+(defcustom vertico-timer-action-hint-fstring
+  vertico-timer-action-hint-default-fstring
   "Format string used for the display of the currently active action.
 '%s' will be replaced with the \\='vertico-timer-action-hint property of
 the current value of `vertico-timer--action'."
-  :type '(radio (const :tag "No Action Hint" nil) (string))
+  :type '(radio (const :tag "No Action Hint" nil) string)
   :group 'vertico-timer)
 
 (defvar vertico-timer--vertico-indexed-commands-orig
@@ -251,6 +270,9 @@ Interaction is determined by `vertico-timer-key-interaction'."
     map)
   "Keymap for `vertico-timer-ticking' minor mode.")
 
+(defvar-local vertico-timer-ticking-mode nil
+  "Non-nil if timer is running.")
+
 ;; NOTE It is tempting to ditch the explicit timer completely and
 ;; instead use the properties of `set-transient-map':
 ;; - TIMEOUT allows us to have the basic timer functionality
@@ -272,8 +294,13 @@ Interaction is determined by `vertico-timer-key-interaction'."
 (defun vertico-timer--ticking-mode ()
   "Activate `vertico-timer-ticking-map'."
   (prefix-command-update)
-  (setq vertico-timer--exit-map-fn
-        (set-transient-map vertico-timer-ticking-map)))
+  (setq vertico-timer-ticking-mode t
+        vertico-timer--exit-map-fn
+        (set-transient-map vertico-timer-ticking-map
+                           ;; KEEP-PRED
+                           nil
+                           ;; ON-EXIT
+                           (lambda () (setq vertico-timer-ticking-mode nil)))))
 
 (defun vertico-timer--run-action ()
   "Call `vertico-timer--action' on the selection.
@@ -337,6 +364,9 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 
 ;; User-defined Actions
 
+(defvar vertico-timer--user-registered-actions nil
+  "Actions registered via `vertico-timer-register-action'.")
+
 (defmacro vertico-timer-register-action (key cmd &optional name prep-key)
   "Bind CMD to KEY in `vertico-timer-ticking-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
@@ -365,6 +395,8 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
            (prep-fn-sym
             (intern (concat "vertico-timer-prep-action-" suffix))))
       `(progn
+         (unless (memq #',cmd vertico-timer--user-registered-actions)
+           (push #',cmd vertico-timer--user-registered-actions))
          ,(when prep-key
             `(defun ,prep-fn-sym ()
                (interactive)
@@ -424,6 +456,7 @@ each of which can be followed by keyword options:
   "Holds the user's original digit keybindings in `vertico-map' if any.
 These keys are restored when `vertico-timer-mode' is disabled.")
 
+
 (defun vertico-timer--setup ()
   "Hook up timer to digit keys in `vertico-map'."
 
@@ -478,6 +511,10 @@ Updates action hint if enabled."
   (setq vertico-timer--action fn)
   (vertico-timer--exhibit))
 
+(defvar-local vertico-timer--action-hint-fallbacks nil
+  "Alist that provides fallbacks for the display of action hints.
+Keys are symbols of actions, values strings.")
+
 ;; Ways to render hint:
 ;; - Make `vertico-count-format' buffer local and change it to include
 ;;   propertized string
@@ -490,8 +527,11 @@ Updates action hint if enabled."
   (when (and (bound-and-true-p vertico-timer--action)
              (bound-and-true-p vertico-timer-action-hint-fstring)
              (overlayp vertico--count-ov))
-    (if-let ((hint (function-get vertico-timer--action
-                                 'vertico-timer-action-hint)))
+    (if-let ((hint (or (function-get vertico-timer--action
+                                     'vertico-timer-action-hint)
+                       ;; User cycles actions but has some hints disabled
+                       (alist-get vertico-timer--action
+                                  vertico-timer--action-hint-fallbacks))))
         (overlay-put vertico--count-ov 'after-string
                      (format vertico-timer-action-hint-fstring
                              hint))
@@ -535,6 +575,54 @@ This will also inhibit all funcionality from `vertico-timer-mode'."
     (add-hook 'minibuffer-exit-hook
               (lambda () (vertico-indexed-mode -1))
               nil 'local)))
+
+(defvar-local vertico-timer--actions nil
+  "A ring with all actions available during cycling.")
+
+(defun vertico-timer--actions-collect ()
+  "Return ring of available actions."
+  (let ((ring (make-ring (+ 2 (length vertico-timer--user-registered-actions)))))
+    (ring-insert ring vertico-timer-default-action)
+    (ring-insert ring #'vertico-insert)
+    (dolist (action vertico-timer--user-registered-actions)
+      (ring-insert ring action))
+    ring))
+
+(defun vertico-timer--cycle-actions (&optional reverse)
+  "Cycle through registered actions starting from `vertico-timer--action'.
+If REVERSE is non-nil reverse the direction."
+  ;; Ensure action hint is shown even if user disabled it
+  (setq-local vertico-timer-action-hint-fstring
+              (or vertico-timer-action-hint-fstring
+                  vertico-timer-action-hint-default-fstring))
+
+  ;; Prepare fallback action hints in case the user disabled them
+  (setq vertico-timer--action-hint-fallbacks
+        `((,vertico-timer-default-action . "default")
+          (vertico-insert . "insert")))
+
+  ;; Unless successive cycle operation, collect all actions
+  (unless vertico-timer--actions
+    (setq vertico-timer--actions (vertico-timer--actions-collect)))
+
+  (vertico-timer--set-action
+   (if reverse
+       (ring-previous vertico-timer--actions vertico-timer--action)
+     (ring-next vertico-timer--actions vertico-timer--action))))
+
+(defun vertico-timer-cycle-actions-forward ()
+  "Cycle forward through registered actions."
+  (interactive)
+  (when vertico-timer-ticking-mode
+    (prefix-command-preserve-state))
+  (vertico-timer--cycle-actions))
+
+(defun vertico-timer-cycle-actions-backward ()
+  "Cycle backward through registered actions."
+  (interactive)
+  (when vertico-timer-ticking-mode
+    (prefix-command-preserve-state))
+  (vertico-timer--cycle-actions 'reverse))
 
 (provide 'vertico-timer)
 ;;; vertico-timer.el ends here
