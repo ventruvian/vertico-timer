@@ -22,7 +22,7 @@
 ;;  able to insert digit's into the minibuffer.
 ;;  Use `vertico-timer-toggle-in-session' or 'C-q' in that case.
 ;;
-;;  Originally intended for speed an emergend feature is the ability
+;;  Originally intended for speed an emergent feature is the ability
 ;;  to change the exit action (like `embark-act') _after_ candidate
 ;;  selection with very simple keys. Since the selected action is not
 ;;  executed before the timer runs out (unless you intervene) an
@@ -62,7 +62,7 @@
 ;;     a digit key. You probably have to make do with keychords now since
 ;;     letter keys are needed for input, but sometimes it may be a better
 ;;     mental model of the operation at hand, when you know already what
-;;     you want to do, but not to whome spotted the candidate yet. I.e.
+;;     you want to do, but not to whom spotted the candidate yet. I.e.
 ;;     you may already know you want to `embark-become' into another
 ;;     command but haven't spotted the candidate yet. This flow is of
 ;;     course compatible with all the others. You can always go goofy.
