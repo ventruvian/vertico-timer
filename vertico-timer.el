@@ -397,7 +397,7 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
          (unless (seq-reduce (lambda (acc action)
                                (or acc (eq #',cmd (plist-get action :cmd))))
                              vertico-timer--user-registered-actions nil)
-           (push '(:cmd #',cmd :key ,key :name ,name :prep-key ,prep-key)
+           (push '(:cmd ,cmd :key ,key :name ,name :prep-key ,prep-key)
                  vertico-timer--user-registered-actions))
          ,(when prep-key
             `(defun ,prep-fn-sym ()
