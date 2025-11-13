@@ -496,6 +496,12 @@ These keys are restored when `vertico-timer-mode' is disabled.")
    (lambda (key def) (keymap-set vertico-map (single-key-description key) def))
    vertico-timer--original-digit-bindings)
 
+  ;; Restore symbol properties
+  (function-put vertico-timer-default-action
+                'vertico-timer-action-hint nil)
+  (function-put 'vertico-insert
+                'vertico-timer-action-hint nil)
+
   ;; Restore vertico-indexed state
   (setq vertico-indexed--commands vertico-timer--vertico-indexed-commands-orig))
 
