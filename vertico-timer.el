@@ -346,10 +346,12 @@ command bound in the map. Otherwise a name will be generated.
 NAME will also show up in the action-hint overlay.
 
 If PREP-KEY is provided an additional command will be bound `vertico-map'.
-Invoking that command will set `vertico-timer--action' ahead of keypresses."
+Invoking that command will set `vertico-timer--action' ahead of keypresses.
+
+Use `vertico-timer-register-actions' to register multiple actions at once."
   (unless (key-valid-p (eval key))
     (error "KEY %s doesn't satisfy `key-valid-p'" key))
-  (unless (key-valid-p (eval prep-key))
+  (unless (or (not prep-key) (key-valid-p (eval prep-key)))
     (error "KEY %s doesn't satisfy `key-valid-p'" prep-key))
   (unless (or (not name) (stringp name))
     (error "Name must be a string or nil"))
