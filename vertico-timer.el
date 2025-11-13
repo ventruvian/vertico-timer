@@ -143,10 +143,6 @@
           string)
   :group 'vertico-timer)
 
-(defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
-  "What to index the candidates with.
-Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
-
 (defcustom vertico-timer-key-interaction 'reset
   "What happens to the timer after a key was pressed.
 Only affects keys bound in `vertico-timer-ticking-map'.
@@ -157,26 +153,26 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
           (const :tag "None" none))
   :group 'vertico-timer)
 
-(defvar vertico-timer-action-hint-default-fstring
-  (concat
-   (propertize " | " 'face 'shadow)
-   (propertize "⏲ " 'face 'font-lock-comment-face)
-   (propertize "%s" 'face 'font-lock-constant-face)
-   (propertize " | " 'face 'shadow))
-  "Default action hint format.
-Fallback for when the user has disabled the hint but wants to cycle actions.")
+(defvar vertico-timer--prefixes '("0" "1" "2" "3" "4" "5" "6" "7" "8" "9")
+  "What to index the candidates with.
+Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
 
-(defcustom vertico-timer-action-hint-fstring
-  vertico-timer-action-hint-default-fstring
+(defcustom vertico-timer-action-hint-fstring nil
   "Format string used for the display of the currently active action.
 '%s' will be replaced with the \\='vertico-timer-action-hint property of
 the current value of `vertico-timer--action'."
   :type '(radio (const :tag "No Action Hint" nil) string)
   :group 'vertico-timer)
 
-(defvar vertico-timer--vertico-indexed-commands-orig
-  vertico-indexed--commands
-  "Helper state for teardown. Original value of `vertico-indexed--commands'.")
+(defvar vertico-timer--action-hint-default-fstring
+  (concat
+   (propertize " | " 'face 'shadow)
+   (propertize "⏲ " 'face 'font-lock-comment-face)
+   (propertize "%s" 'face 'font-lock-constant-face)
+   (propertize " | " 'face 'shadow))
+  "Default action hint format.
+Fallback for when the user has disabled the hint but wants to cycle actions.
+Will be set during `vertico-timer--setup'.")
 
 (defvar-local vertico-timer--action vertico-timer-default-action
   "Action to run after selecting a candidate with digit keys.")
@@ -365,7 +361,10 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 ;; User-defined Actions
 
 (defvar vertico-timer--user-registered-actions nil
-  "Actions registered via `vertico-timer-register-action'.")
+  "A list of actions registered via `vertico-timer-register-action'.
+Each entry is a plist with keys as defined in `vertico-timer-register-actions'.
+The additional keys: `:cmd' indicates the symbol of the action itself
+and `:key' the key it has been bound to in `vertico-timer-ticking-map'.")
 
 (defmacro vertico-timer-register-action (key cmd &optional name prep-key)
   "Bind CMD to KEY in `vertico-timer-ticking-map'.
@@ -395,8 +394,11 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
            (prep-fn-sym
             (intern (concat "vertico-timer-prep-action-" suffix))))
       `(progn
-         (unless (memq #',cmd vertico-timer--user-registered-actions)
-           (push #',cmd vertico-timer--user-registered-actions))
+         (unless (seq-reduce (lambda (acc action)
+                               (or acc (eq #',cmd (plist-get action :cmd))))
+                             vertico-timer--user-registered-actions nil)
+           (push '(:cmd #',cmd :key ,key :name ,name :prep-key ,prep-key)
+                 vertico-timer--user-registered-actions))
          ,(when prep-key
             `(defun ,prep-fn-sym ()
                (interactive)
@@ -439,6 +441,54 @@ each of which can be followed by keyword options:
     `(progn ,@(nreverse forms))))
 
 
+;;; Restore State
+
+(defvar vertico-timer--state-to-restore nil
+  "Alist holding original state to restore on teardown.
+- `:vertico-indexed--commands': Original `vertico-indexed--commands'.
+- `:vertico-indexed-mode': The orginal state of `vertico-indexed-mode'.
+- `:vertico-map': Keymap with original bindings for keys we override.")
+
+(defun vertico-timer--state-store ()
+  "Prepare `vertico-timer--state-to-restore'."
+  ;; Store original commands allowed by vertico-indexed-mode
+  (push `(:vertico-indexed--commands . ,vertico-indexed--commands)
+        vertico-timer--state-to-restore)
+  ;; Store original digit keybindings in vertico-map
+  ;; At this point in time user defined keybindngs
+  (map-keymap
+   (lambda (key def)
+     (let ((k (single-key-description key)))
+       (when (member k vertico-timer--prefixes)
+         (push (cons k def) (alist-get :vertico-map vertico-timer--state-to-restore)))))
+   vertico-map)
+  ;; Store whether vertico-indexed-mode is active
+  (setf (alist-get :vertico-indexed-mode vertico-timer--state-to-restore)
+        vertico-indexed-mode))
+
+(defun vertico-timer--state-restore ()
+  "Restore state from `vertico-timer--state-to-restore'."
+  ;; Restore vertico-indexed state
+  (setq vertico-indexed--commands
+        (alist-get :vertico-indexed--commands
+                   vertico-timer--state-to-restore
+                   '(vertico-exit vertico-directory-enter
+                     vertico-insert)))
+  ;; Unset vertico-timer bindings
+  (mapc (lambda (prefix)
+          (keymap-unset vertico-map prefix 'remove))
+        vertico-timer--prefixes)
+  ;; Restore previous bindings for digit keys if any
+  (mapc
+   (lambda (binding)
+     (let ((key (car binding)) (def (cdr binding)))
+       (keymap-set vertico-map key def)))
+   (alist-get :vertico-map vertico-timer--state-to-restore))
+  ;; Restore state of vertico-indexed-mode
+  (unless (alist-get :vertico-indexed-mode vertico-timer--state-to-restore)
+    (vertico-indexed-mode -1)))
+
+
 ;;; Mode
 
 ;;;###autoload
@@ -452,24 +502,22 @@ each of which can be followed by keyword options:
       (vertico-timer--setup)
     (vertico-timer--teardown)))
 
-(defvar vertico-timer--original-digit-bindings (make-sparse-keymap)
-  "Holds the user's original digit keybindings in `vertico-map' if any.
-These keys are restored when `vertico-timer-mode' is disabled.")
-
-
 (defun vertico-timer--setup ()
   "Hook up timer to digit keys in `vertico-map'."
 
-  ;; Store original digit-keybindings in `vertico-map', if any
-  (map-keymap
-   (lambda (key def)
-     (let ((k (single-key-description key)))
-       (when (member k vertico-timer--prefixes)
-         (keymap-set vertico-timer--original-digit-bindings
-                     k def))))
-   vertico-map)
+  ;; Store relevant state
+  (vertico-timer--state-store)
 
-  ;; Ensure `vertico-timer--first-digit' passes the vertico-indexed filter
+  ;; Ensure vertico-indexed is running
+  (unless vertico-indexed-mode
+    (vertico-indexed-mode 1))
+
+  ;; Init Default Variables
+  (unless vertico-timer-action-hint-fstring
+    (setopt vertico-timer-action-hint-fstring
+            vertico-timer--action-hint-default-fstring))
+
+  ;; Ensure vertico-timer--first-digit passes vertico-indexed's filter
   (unless (memq 'vertico-timer--first-digit vertico-indexed--commands)
     (push 'vertico-timer--first-digit vertico-indexed--commands))
 
@@ -486,24 +534,13 @@ These keys are restored when `vertico-timer-mode' is disabled.")
 (defun vertico-timer--teardown ()
   "Revert digit keys in `vertico-map'."
 
-  ;; Unset vertico-timer bindings
-  (mapc (lambda (n)
-          (keymap-unset vertico-map n 'remove))
-        vertico-timer--prefixes)
+  (vertico-timer--state-restore)
 
-  ;; Restore previous bindings if any
-  (map-keymap
-   (lambda (key def) (keymap-set vertico-map (single-key-description key) def))
-   vertico-timer--original-digit-bindings)
-
-  ;; Restore symbol properties
+  ;; Unset symbol properties
   (function-put vertico-timer-default-action
                 'vertico-timer-action-hint nil)
   (function-put 'vertico-insert
-                'vertico-timer-action-hint nil)
-
-  ;; Restore vertico-indexed state
-  (setq vertico-indexed--commands vertico-timer--vertico-indexed-commands-orig))
+                'vertico-timer-action-hint nil))
 
 
 ;;; Display Hint
@@ -591,7 +628,7 @@ This will also inhibit all funcionality from `vertico-timer-mode'."
     (ring-insert ring vertico-timer-default-action)
     (ring-insert ring #'vertico-insert)
     (dolist (action vertico-timer--user-registered-actions)
-      (ring-insert ring action))
+      (ring-insert ring (plist-get action :cmd)))
     ring))
 
 (defun vertico-timer--cycle-actions (&optional reverse)
@@ -600,7 +637,7 @@ If REVERSE is non-nil reverse the direction."
   ;; Ensure action hint is shown even if user disabled it
   (setq-local vertico-timer-action-hint-fstring
               (or vertico-timer-action-hint-fstring
-                  vertico-timer-action-hint-default-fstring))
+                  vertico-timer--action-hint-default-fstring))
 
   ;; Prepare fallback action hints in case the user disabled them
   (setq vertico-timer--action-hint-fallbacks
