@@ -84,14 +84,16 @@
 ;;
 ;;  Action Hint Display
 ;;
-;;    By default a hint is displayed in the minibuffer informing about the
-;;    action the timer is going to run. You can customize that behaviour:
-
-;;    - If you don't like the display of the action-hint in the minibuffer
-;;      you can disable it by unsetting `vertico-timer-action-hint-fstring'
-;;      When you cycle the available actions it will be shown regardless.
-;;    - If you want the hint displayed only if the default action has
-;;      changed unset `vertico-timer-default-action-hint'
+;;    You can activate an overlay in the minibuffer displaying the currently
+;;    selected action by setting `vertico-timer-action-hint-format' to any
+;;    string that includes a '%s' specifier where the action is to be shown.
+;;    Enable the default action hint by setting
+;;    `vertico-timer-action-hint-format' to
+;;    `vertico-timer-action-hint-default-format'. Cycling Actions toggles
+;;    this display if you have otherwise unset it.
+;;
+;;    - If you don't want to see the display most of the time but only when
+;;      the default action changes unset `vertico-timer-default-action-hint'
 ;;
 ;;  Cycle the Active Action:
 ;;
@@ -104,7 +106,7 @@
 ;;
 ;;; Todos:
 ;;
-;;  - TODO Don't depend on the user starting `vertico-indexed-mode'
+;;  - TODO Keybinding to interrupt the timer and do nothing
 ;;
 ;;; Code:
 
@@ -157,14 +159,14 @@ Default is \\='reset. Resetting the timer makes it easier to change the action
   "What to index the candidates with.
 Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
 
-(defcustom vertico-timer-action-hint-fstring nil
+(defcustom vertico-timer-action-hint-format nil
   "Format string used for the display of the currently active action.
 '%s' will be replaced with the \\='vertico-timer-action-hint property of
 the current value of `vertico-timer--action'."
   :type '(radio (const :tag "No Action Hint" nil) string)
   :group 'vertico-timer)
 
-(defvar vertico-timer--action-hint-default-fstring
+(defvar vertico-timer-action-hint-default-format
   (concat
    (propertize " | " 'face 'shadow)
    (propertize "⏲ " 'face 'font-lock-comment-face)
@@ -219,12 +221,6 @@ Timer is stored in `vertico-timer--timer'."
 
 ;;; Digit Keys
 
-(defun vertico-timer--set-digit-keys (map cmd)
-  "Set all digit keys in MAP to CMD."
-  (mapc (lambda (n)
-          (keymap-set map (single-key-description n) cmd))
-        vertico-timer--prefixes))
-
 (defun vertico-timer--digit-argument (arg)
   "Handles ARG like `digit-argument'.
 Instead of `universal-argument-map' activates `vertico-timer-ticking-map'."
@@ -257,6 +253,12 @@ Interaction is determined by `vertico-timer-key-interaction'."
     ('reset (vertico-timer--reset-timer))
     ('none nil)
     (_ nil)))
+
+(defun vertico-timer--set-digit-keys (map cmd)
+  "Set all digit keys in MAP to CMD."
+  (mapc (lambda (n)
+          (keymap-set map (single-key-description n) cmd))
+        vertico-timer--prefixes))
 
 (defvar vertico-timer-ticking-map
   (let ((map (make-sparse-keymap)))
@@ -380,8 +382,8 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
     (error "KEY %s doesn't satisfy `key-valid-p'" key))
   (unless (or (not prep-key) (key-valid-p (eval prep-key)))
     (error "KEY %s doesn't satisfy `key-valid-p'" prep-key))
-  (unless (or (not name) (stringp name))
-    (error "Name must be a string or nil"))
+  (when (or (and name (not (stringp name))) (string-empty-p name))
+    (error "Name must be a non-empty string or nil"))
   (let ((body `((interactive)
                 (prefix-command-preserve-state)
                 (vertico-timer--set-action #',cmd)
@@ -504,11 +506,6 @@ each of which can be followed by keyword options:
   (unless vertico-indexed-mode
     (vertico-indexed-mode 1))
 
-  ;; Init Default Variables
-  (unless vertico-timer-action-hint-fstring
-    (setopt vertico-timer-action-hint-fstring
-            vertico-timer--action-hint-default-fstring))
-
   ;; Ensure vertico-timer--first-digit passes vertico-indexed's filter
   (unless (memq 'vertico-timer--first-digit vertico-indexed--commands)
     (push 'vertico-timer--first-digit vertico-indexed--commands))
@@ -560,7 +557,7 @@ Keys are symbols of actions, values strings.")
 (defun vertico-timer--update-action-hint ()
   "Indicate the current value of `vertico-timer--action' in the minibuffer."
   (when (and (bound-and-true-p vertico-timer--action)
-             (bound-and-true-p vertico-timer-action-hint-fstring)
+             (bound-and-true-p vertico-timer-action-hint-format)
              (overlayp vertico--count-ov))
     (if-let ((hint (or (function-get vertico-timer--action
                                      'vertico-timer-action-hint)
@@ -568,7 +565,7 @@ Keys are symbols of actions, values strings.")
                        (alist-get vertico-timer--action
                                   vertico-timer--action-hint-fallbacks))))
         (overlay-put vertico--count-ov 'after-string
-                     (format vertico-timer-action-hint-fstring
+                     (format vertico-timer-action-hint-format
                              hint))
       ;; Unset hint when default action has none
       (when (overlay-get vertico--count-ov 'after-string)
@@ -627,9 +624,9 @@ This will also inhibit all funcionality from `vertico-timer-mode'."
   "Cycle through registered actions starting from `vertico-timer--action'.
 If REVERSE is non-nil reverse the direction."
   ;; Ensure action hint is shown even if user disabled it
-  (setq-local vertico-timer-action-hint-fstring
-              (or vertico-timer-action-hint-fstring
-                  vertico-timer--action-hint-default-fstring))
+  (setq-local vertico-timer-action-hint-format
+              (or vertico-timer-action-hint-format
+                  vertico-timer-action-hint-default-format))
 
   ;; Prepare fallback action hints in case the user disabled them
   (setq vertico-timer--action-hint-fallbacks
