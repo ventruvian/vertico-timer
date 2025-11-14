@@ -262,6 +262,7 @@ Interaction is determined by `vertico-timer-key-interaction'."
   (let ((map (make-sparse-keymap)))
     (vertico-timer--set-digit-keys map #'vertico-timer--successive-digit)
     (keymap-set map "RET" #'vertico-timer-stop-exit)
+    (keymap-set map "TAB" #'vertico-timer-stop-insert)
     (keymap-set map "i" #'vertico-timer-stop-insert)
     map)
   "Keymap for `vertico-timer-ticking' minor mode.")
