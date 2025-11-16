@@ -1,1 +1,360 @@
-#+title: Vertico Timer
+#+TITLE: vertico-timer
+#+AUTHOR: Vincent Trötschel
+#+DATE: <2025-11-03 Sun>
+#+EMAIL: vincent.troetschel@mailbox.org
+#+OPTIONS: toc:2 h:2
+
+* Introduction
+
+~vertico-timer~ is a [[https://github.com/minad/vertico][vertico]] extension that builds on [[https://github.com/minad/vertico/blob/main/extensions/vertico-indexed.el][vertico-indexed]] and around
+the same basic idea of selecting candidates with digit keys. The fastest way to
+=vertico= is usually to narrow the list to one candidate and press ~RET~, however
+you need to know enough of a candidate's name (and be a quick typer). This
+package aims to speed up the process for those times that you have to look at
+the list.
+
+While ~vertico-indexed-mode~ allows you to select candidates by their indices
+using prefix arguments, this package makes it even faster by allowing /direct/
+selection with digit keys. So instead of pressing ~C-u 9 RET~ to select the ninth
+candidate you simply hit ~9~. Instead of ~C-u 1 1 RET~ you type ~1 1~.
+
+*Beware*: This introduces a _highly opinionated tradeoff_. What if you actually
+want to /input/ numbers into the minibuffer? While you could always quote-insert
+them with ~C-q~, if you actually do find yourself filtering by numbers they
+usually come in a bunch, (i.e. filtering [[https://protesilaos.com/emacs/denote#h:4e9c7512-84dc-4dfb-9fa9-e15d51178e5d][denote]]s).
+
+So the proposed tradeoff by this package is a per-session toggle. This
+effectively adds a “key-prefix” (the toggle) to the rare case (inputting
+numbers) and removes it from the common case (selecting candidates). You may
+find you barely ever need to input numbers into the minibuffer, but this depends
+on personal usage-patterns.
+
+This package concerns itself with more [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][bells and whistles]] but really this covers
+the practical use-case. If you think this functionality can benefit your usage
+and you want to shave off time from completing candidates, I recommend to jump
+over to the [[minimum-configuration][minimal configuration]] after [[id:81665f01-3b3e-40b7-9b83-14b5f1fff2b5][installation]] and get a feel for the
+basic mechanics before looking at anything fancy.
+
+* How it works
+
+~vertico-timer~ still uses ~prefix-arg~ in the background to allow selecting
+multi-digit candidates (hitting ~1 2~ will select the 12th candidate). It will
+pass that baton to ~vertico-indexed~.
+
+After receiving the first digit key a timer starts that executes the default
+action on the candidate whose index corresponds to the value of ~prefix-arg~. This
+gives you time to append a second digit to ~prefix-arg~.
+
+* Requirements
+
+- Emacs 29.1 or later
+- vertico
+- vertico-indexed (included in vertico, loaded automatically)
+
+* Installation
+:PROPERTIES:
+:ID:       81665f01-3b3e-40b7-9b83-14b5f1fff2b5
+:END:
+
+The package is available at [[https://github.com/VitruvianVice/vertico-timer][https://github.com/ventruvian/vertico-timer]].
+
+** straight.el
+
+#+begin_src emacs-lisp
+(straight-use-package
+ '(vertico-timer :type git :host github :repo "ventruvian/vertico-timer"))
+#+end_src
+
+** Doom Emacs
+
+Add to your ~packages.el~:
+
+#+begin_src emacs-lisp
+(package! vertico-timer :recipe (:host github :repo "ventruvian/vertico-timer"))
+#+end_src
+
+** Elpaca
+
+#+begin_src emacs-lisp
+(use-package vertico-timer
+  :elpaca (vertico-timer :host github :repo "ventruvian/vertico-timer")
+  :after vertico
+  :ensure t)
+#+end_src
+
+* Configuration
+
+Configuring the timer as well as a session toggle is strongly recommended. It is
+kept rather short (but usable) by default to push you to set one yourself.
+Everybody has their own sweet spot.
+
+You'll also want a toggle for number input. Otherwise you'd need to prefix every number
+that you want to insert with =C-q=.
+
+A minimum recommended configuration:
+
+#+name: minimum-configuration
+#+begin_src emacs-lisp
+(use-package vertico-timer
+  ;; Seconds to wait before executing the action
+  :custom (vertico-timer-timeout-seconds 0.25)
+  ;; Actually input numbers into the minibuffer
+  :bind (:map vertico-map ("M-i" . vertico-timer-toggle-in-session))
+  :hook (vertico-mode . vertico-timer-mode))
+#+end_src
+
+A more advanced configuration utilizing changes to the [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][exit action]]:
+
+#+name: advanced-configuration
+#+begin_src emacs-lisp
+(use-package vertico-timer
+
+  :custom
+  ;; Tell the timer which action you run most often
+  (vertico-timer-default-action #'vertico-directory-enter)
+  ;; Seconds to wait before executing the action
+  (vertico-timer-timeout-seconds 0.25)
+  ;; Get extra time for a third key to choose an exit action
+  (vertico-timer-key-interaction 'reset)
+  ;; Change action hint for default action
+  (vertico-timer-default-action-hint "exit")
+
+  :hook (vertico-mode . vertico-timer-mode)
+  ;; Placeholder bindings, find ones that suit you!
+  :bind (:map vertico-map
+              ;; "Prefix" to allow for number input
+              ("s-t" . vertico-timer-toggle-in-session)
+              ;; Pre-digit key if you know you'll want to insert into the minibuffer
+              ("s-i" . vertico-timer-prep-insert-action)
+              ;; Probably rarely used. Change back to default action
+              ("s-d" . vertico-timer-prep-default-action)
+              ;; Cycle through registered action pre-digit-press
+              ;; Doing this probably won't make you very fast
+              ("s-<right>" . vertico-timer-cycle-actions-forward)
+              ("s-<left>"  . vertico-timer-cycle-actions-backward))
+
+  :config
+  ;; Activate the action hint in the minibuffer
+  (setopt vertico-timer-action-hint-format
+   vertico-timer-action-hint-default-format)
+
+  ;; embark-become acts on the input not the candidate so we insert first
+  (defun i/embark-become ()
+    (interactive)
+    (vertico-insert)
+    (call-interactively #'embark-become))
+
+  ;; Call embark-act by pressing "a" after digits or "s-a" before
+  (vertico-timer-register-actions
+   "a" embark-act :name "act" :prep-key "s-a"
+   "b" i/embark-become :name "become" :prep-key "s-b"))
+#+end_src
+
+_Note_: The keybindings presented here are not a recommendation, I use totally
+different ones myself, but since my keyboard layout is differnt from everybody
+elses there is little sense in sharing mine. These keybindings should be seen as
+placeholders. If you come up with a set of keybindings that are compatible with
+regular keyboards and that work well for you please share them and I'll update
+this section.
+
+* Usage
+
+Enable ~vertico-timer-mode~ globally to activate the timer-based selection. It
+will automatically enable ~vertico-indexed-mode~ (if not already enabled).
+
+Use digit keys to select candidates while completing. Digit keys will highlight
+the corresponding candidate and start a timer. The action executed by the timer
+can be changed. If enabled, the current action will be overlayed in the minibuffer.
+
+Available actions during timer:
+- ~TAB~ / ~i~: Insert the candidate 
+- ~RET~: Cancel the timer (and execute the default action)
+- Your own keys registered via ~vertico-timer-register-actions~
+
+If you need to disable the behavior during a single completion session (e.g., to
+input digits as text), bind ~vertico-timer-toggle-in-session~.
+
+** Changing the Action on the Target
+:PROPERTIES:
+:ID:       02bcd4b7-4815-4e2a-96c4-af2c12a805ee
+:END:
+
+For the period the timer runs a high-precedence keymap (a transient map) is
+activated. The digit keys are bound to it. (Nearly) All other keys are empty.
+
+This keymap ~vertico-timer-map~ provides facilties to influence the action the
+timer will take on the target with a single letter. For example ~RET~ is bound to
+it to execute the default action on the candidate right away.
+
+If you want to change the exit-action on a candidate with multi-digit index
+(i.e. ~11~) you may be pressed for time. You can instruct the timer to reset with
+every successive digit you press by setting ~vertico-timer-key-interaction~ to
+~'reset~.
+
+*** Defining Custom Actions
+
+Use ~vertico-timer-register-actions~ with a list of bindings (can be single
+letters) and commands to be register them in ~vertico-timer-map~. For example:
+
+#+begin_src emacs-lisp
+(defun i/print-cand ()
+  (interactive)
+  (message "hello from %s" (vertico--candidate)))
+
+;; If you want the action hint add :name keys here
+(vertico-timer-register-actions
+ "p" i/print-cand
+ "a" embark-act)
+#+end_src
+
+With this snippet you will have two extra actions available after selection.
+When you press ~3 p~ a greeting will appear from the 3rd candidate and if you
+press ~3 a~ you will invoke ~embark-act~ on it. One is probably more useful than the
+other.
+
+Here is a little comparison of keypresses between [[advanced-configuration][this]] configuration of
+~vertico-timer~ and a setup with ~embark~'s [[https://github.com/oantolin/embark?tab=readme-ov-file#quick-start][quick-start]] settings:
+
+| Use Case              | vertico-indexed   | vertico-timer |
+|-----------------------+-------------------+---------------|
+| Select 5th candidate  | ~C-u 5 RET~         | ~5~             |
+| Select 10th candidate | ~C-u 1 0 RET~       | ~1 0~           |
+| Insert 7th candidate  | ~C-u 7 TAB~         | ~7 i~           |
+|                       |                   | ~7 TAB~         |
+| ~embark-act~ on 6th     | ~C-u 6 C-.~         | ~6 a~           |
+| ~embark-become~ on 11th | ~C-u 1 1 TAB C-. B~ | ~1 1 b~         |
+
+
+Okay that last one was a bit contrieved as you could use the same exit action
+(combining ~vertico-insert~ with ~embark-become~) in ~vertico-indexed~, but you'd need
+another unweildly keychord for it.
+
+** Displaying an Action Hint
+
+You can activate an overlay in the minibuffer that displays your current choice
+of action by setting ~vertico-timer-action-hint-format~ to a valid (possibly
+propertized) string. ~%s~ will be replaced by the name of your action in the
+minibuffer. The default will get you started:
+
+#+begin_src emacs-lisp
+(setopt vertico-timer-action-hint-format
+   vertico-timer-action-hint-default-format)
+#+end_src
+
+Using ~setopt~ will validate the string first, if you use ~setq~ you have to ensure
+that your string contains exactly one ~%s~ as the format parameter.
+
+The name shown is the value of the ~:name~ key in ~vertico-timer-register-actions~.
+So in the example from earlier add:
+
+#+begin_src emacs-lisp
+(defun i/print-cand ()
+  (interactive)
+  (message "hello from %s" (vertico--candidate)))
+
+(vertico-timer-register-actions
+ "p" i/print-cand :name "greet"
+ "a" embark-act :name "act")
+#+end_src
+
+If you leave out the ~:name~ key a generated name like ~cust-g408~ will be shown for
+each of your anonymous actions. This is probably not very helpful so if you use the action
+hint set a name as well.
+
+** Preparing an Action
+
+You can also prepare an action if you know you want to change it but haven't
+found the candidate yet, effectively inverting the mental model. An
+"insert-action" (calling ~vertico-insert~) and a "default-action" are
+preconfigured, bind ~vertico-timer-prep-insert-action~ and
+~vertico-timer-prep-default-action~ in ~vertico-map~ if you want to be able to set
+these before you start the timer.
+
+Your custom actions can be prepared by passing a ~:prep-key~ argument to
+~vertico-timer-register-actions~:
+
+#+begin_src emacs-lisp
+(keymap-set vertico-map "s-i" #'vertico-timer-prep-insert-action)
+
+(vertico-timer-register-actions
+ "a" embark-act :name "act" :prep-key "s-a")
+#+end_src
+
+Now you will be able to hit ~s-i 3~ to insert the 3rd candidate into the
+minibuffer with leasure or ~s-a 3~ to ~embark-act~ on it (again these keybindings are
+completely made up and not battle-tested).
+
+** Cyclying Through Actions
+
+Two functions are available to cycle all available exit actions:
+- ~vertico-timer-cycle-actions-forward~
+- ~vertico-timer-cycle-actions-backward~
+
+If you want you can bind them, but cycling through things never
+encourages speed, but they may aid in discovery of the functionality. If you
+invoke a cycle command the action hint will display for the session regardless
+of the global setting.
+
+** Workflow Suggestions
+
+I apologize for being a bit extra but let me categorize the
+
+1. **Versatile**: Set a long timer (>0.5s). Prefer exit actions over waiting for timeout. Use default action on RET, but have custom actions on easy keys for versatility.
+
+2. **Speed**: Short timer (~0.25s) and unset timer-reset. Use default action mostly, let timer confirm selection automatically. Requires fast typing, and the timer saves a keypress.
+
+3. **Compromise**: Short timer (~​0.25s), but with ~vertico-timer-key-interaction~ set to ~reset~, allowing the second digit to reset the timer for longer selections.
+
+4. **Goofy**: Press a ~:prep-key~ first to select an action, then digits to select candidate. Useful when you know the action but not the candidate yet, e.g., ~embark-become~ before finding the target command.
+
+* Customization Options
+
+- ~vertico-timer-timeout-seconds~: Seconds to wait before executing action (default 0.5)
+
+- ~vertico-timer-default-action~: Default action function (default ~vertico-exit~)
+
+- ~vertico-timer-default-action-hint~: Hint for default action in overlay (default "default")
+
+- ~vertico-timer-insert-action-hint~: Hint for insert action (default "insert")
+
+- ~vertico-timer-key-interaction~: How timer interacts with successive digit presses ("reset" or "none", default "reset")
+
+- ~vertico-timer-action-hint-fstring~: Format string for action hint overlay (default with clock emoji)
+
+* Commands
+
+- ~vertico-timer-mode~: Global minor mode to enable/disable
+
+- ~vertico-timer-toggle-in-session~: Toggle mode for current session
+
+- ~vertico-timer-cycle-actions-forward~: Cycle to next registered action
+
+- ~vertico-timer-cycle-actions-backward~: Cycle to previous registered action
+
+- ~vertico-timer-prep-default-action~: Prepare default action
+
+- ~vertico-timer-prep-insert-action~: Prepare insert action
+
+- Generate your own commands with ~vertico-timer-register-actions~
+
+* Keybindings
+
+During the timer:
+- Digit keys: Select candidate and interact with timer
+- ~TAB~ / ~i~: Switch to insert action
+- ~RET~: Confirm default action
+- Custom keys as registered
+
+In ~vertico-map~:
+- digit keys: Adapted for timer selection
+- ~s-t~: Toggle in session (example)
+- Prep keys for advance action selection (examples ~s-a~, etc.)
+- Cycling keys (examples ~s-<right>~, etc.)
+
+* Contributing
+
+Contributions welcome! Please open issues or pull requests on GitHub.
+
+* License
+
+This package is licensed under GPLv3. See [[file:LICENCE][LICENCE]] for details.
