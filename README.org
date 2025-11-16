@@ -35,7 +35,7 @@ and you want to shave off time from completing candidates, I recommend to jump
 over to the [[minimum-configuration][minimal configuration]] after [[id:81665f01-3b3e-40b7-9b83-14b5f1fff2b5][installation]] and get a feel for the
 basic mechanics before looking at anything fancy.
 
-* How it works
+** How it works
 
 ~vertico-timer~ still uses ~prefix-arg~ in the background to allow selecting
 multi-digit candidates (hitting ~1 2~ will select the 12th candidate). It will
@@ -83,6 +83,9 @@ Add to your ~packages.el~:
 #+end_src
 
 * Configuration
+:PROPERTIES:
+:ID:       79a72d25-a6a6-47ff-ba24-29d5a955f194
+:END:
 
 Configuring the timer as well as a session toggle is strongly recommended. It is
 kept rather short (but usable) by default to push you to set one yourself.
@@ -156,6 +159,20 @@ elses there is little sense in sharing mine. These keybindings should be seen as
 placeholders. If you come up with a set of keybindings that are compatible with
 regular keyboards and that work well for you please share them and I'll update
 this section.
+
+** Customization Options
+
+- ~vertico-timer-timeout-seconds~: Seconds to wait before executing action (default 0.5)
+
+- ~vertico-timer-default-action~: Default action function (default ~vertico-exit~)
+
+- ~vertico-timer-default-action-hint~: Hint for default action in overlay (default "default")
+
+- ~vertico-timer-insert-action-hint~: Hint for insert action (default "insert")
+
+- ~vertico-timer-key-interaction~: How timer interacts with successive digit presses ("reset" or "none", default "reset")
+
+- ~vertico-timer-action-hint-fstring~: Format string for action hint overlay
 
 * Usage
 
@@ -262,6 +279,9 @@ each of your anonymous actions. This is probably not very helpful so if you use 
 hint set a name as well.
 
 ** Preparing an Action
+:PROPERTIES:
+:ID:       b4da6be3-9dcd-4ccc-960b-5a7cfbf46591
+:END:
 
 You can also prepare an action if you know you want to change it but haven't
 found the candidate yet, effectively inverting the mental model. An
@@ -297,29 +317,23 @@ of the global setting.
 
 ** Workflow Suggestions
 
-I apologize for being a bit extra but let me categorize the
+Summarizing, some possible workflows come to mind, let's name them for pizzazz:
 
-1. **Versatile**: Set a long timer (>0.5s). Prefer exit actions over waiting for timeout. Use default action on RET, but have custom actions on easy keys for versatility.
+1. *Versatile*: Set a long timer (>0.5s). Prefer exit actions over waiting for
+   timeout. Use default action on ~RET~, but have custom actions on easy keys for
+   versatility.
 
-2. **Speed**: Short timer (~0.25s) and unset timer-reset. Use default action mostly, let timer confirm selection automatically. Requires fast typing, and the timer saves a keypress.
+2. *Speed*: Short timer (~0.25s) and unset timer-reset. Use default action
+   mostly, let timer confirm selection automatically. Requires fast typing, and
+   the timer saves a keypress.
 
-3. **Compromise**: Short timer (~​0.25s), but with ~vertico-timer-key-interaction~ set to ~reset~, allowing the second digit to reset the timer for longer selections.
+3. *Compromise*: Short timer (~​0.25s), but with ~vertico-timer-key-interaction~
+   set to ~reset~, allowing the second digit to reset the timer to be able to choose
+   an exit action.
 
-4. **Goofy**: Press a ~:prep-key~ first to select an action, then digits to select candidate. Useful when you know the action but not the candidate yet, e.g., ~embark-become~ before finding the target command.
-
-* Customization Options
-
-- ~vertico-timer-timeout-seconds~: Seconds to wait before executing action (default 0.5)
-
-- ~vertico-timer-default-action~: Default action function (default ~vertico-exit~)
-
-- ~vertico-timer-default-action-hint~: Hint for default action in overlay (default "default")
-
-- ~vertico-timer-insert-action-hint~: Hint for insert action (default "insert")
-
-- ~vertico-timer-key-interaction~: How timer interacts with successive digit presses ("reset" or "none", default "reset")
-
-- ~vertico-timer-action-hint-fstring~: Format string for action hint overlay (default with clock emoji)
+4. *Goofy*: Press a ~:prep-key~ first to select an action, then digits to select
+   candidate. Maybe useful when you know the action but not the candidate yet, e.g.,
+   ~embark-become~ before finding the target command. Compatible with ~1.~-~3.~
 
 * Commands
 
@@ -339,6 +353,15 @@ I apologize for being a bit extra but let me categorize the
 
 * Keybindings
 
+Two keymaps are relevant for this package:
+- vertico-map :: For all commands that [[id:b4da6be3-9dcd-4ccc-960b-5a7cfbf46591][prepare an action]] as well as for the session-toggle.
+  This package doesn't bind to ~vertico-map~ on it's own but you [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][are suggested]] to
+  bind some keys there to be able to use this package effectively. The
+  ~:prep-key~ binding passed to ~vertico-timer-register-actions~ will end up in this map.
+- vertico-timer-map :: All command active during the timer-duration.
+  Default actions are bound to ~RET~ and ~TAB~ / ~i~, the digit keys are populate for
+  base functionality and the bindings of ~vertico-timer-register-actions~ end up here.
+
 During the timer:
 - Digit keys: Select candidate and interact with timer
 - ~TAB~ / ~i~: Switch to insert action
@@ -351,9 +374,18 @@ In ~vertico-map~:
 - Prep keys for advance action selection (examples ~s-a~, etc.)
 - Cycling keys (examples ~s-<right>~, etc.)
 
+** Advice for Binding Keys
+
+- Take some time to consider the keys you bind. The value of this package
+  drastically depends on how comfortably you can type keys in succesion.
+- If your keyboard (-layout) allows accessing digit keys with one hand (i.e. if
+  you have a number block) consider binding custom actions to keys accessible
+  with the other hand.
+
 * Contributing
 
-Contributions welcome! Please open issues or pull requests on GitHub.
+Contributions welcome! Feel free to check the issues page or submit a pull requests. I can't
+guarantee when I get to them, but everything is greatly appreciated!
 
 * License
 

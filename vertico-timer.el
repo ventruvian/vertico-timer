@@ -74,7 +74,7 @@
 ;;    main use-case and getting keys for exit actions right isn't trivial.
 ;;  - That said if you do get into exit actions: Take some time to consider
 ;;    the keys you bind. The value of this package drastically depends on
-;;    how comfortably you can type a key succesion. One tip regarding that:
+;;    how comfortably you can type keys in succesion. One tip regarding that:
 ;;  - If your keyboard (-layout) allows accessing digit keys with one hand
 ;;    (i.e. if you have a number block) consider binding custom actions to
 ;;    keys accessible with the other hand.
