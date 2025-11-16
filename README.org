@@ -384,7 +384,7 @@ In ~vertico-map~:
 
 * Contributing
 
-Contributions welcome! Feel free to check the issues page or submit a pull requests. I can't
+Contributions welcome! Feel free to check the [[https://github.com/ventruvian/vertico-timer/issues][issues page]] or submit a [[https://github.com/ventruvian/vertico-timer/pulls][pull requests]]. I can't
 guarantee when I get to them, but everything is greatly appreciated!
 
 * License
