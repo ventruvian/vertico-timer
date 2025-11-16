@@ -147,7 +147,7 @@
 
 (defcustom vertico-timer-key-interaction 'none
   "What happens to the timer after a key was pressed.
-Only affects keys bound in `vertico-timer-ticking-map'.
+Only affects keys bound in `vertico-timer-map'.
 Default is \\='reset. Resetting the timer makes it easier to change the action
  executed on a candidate that is prefixed with a two-digit index."
   :type '(radio
@@ -226,7 +226,7 @@ Timer is stored in `vertico-timer--timer'."
 
 (defun vertico-timer--digit-argument (arg)
   "Handles ARG like `digit-argument'.
-Instead of `universal-argument-map' activates `vertico-timer-ticking-map'."
+Instead of `universal-argument-map' activates `vertico-timer-map'."
   (prefix-command-preserve-state)
   (let* ((char (if (integerp last-command-event)
                    last-command-event
@@ -263,7 +263,7 @@ Interaction is determined by `vertico-timer-key-interaction'."
           (keymap-set map (single-key-description n) cmd))
         vertico-timer--prefixes))
 
-(defvar vertico-timer-ticking-map
+(defvar vertico-timer-map
   (let ((map (make-sparse-keymap)))
     (vertico-timer--set-digit-keys map #'vertico-timer--successive-digit)
     (keymap-set map "RET" #'vertico-timer-stop-exit)
@@ -294,11 +294,11 @@ Interaction is determined by `vertico-timer-key-interaction'."
 ;; the intended behaviour together by wrapping ON-EXIT in `(if should-call-p)' but
 ;; having an explicit timer may be cleaner.
 (defun vertico-timer--ticking-mode ()
-  "Activate `vertico-timer-ticking-map'."
+  "Activate `vertico-timer-map'."
   (prefix-command-update)
   (setq vertico-timer-ticking-mode t
         vertico-timer--exit-map-fn
-        (set-transient-map vertico-timer-ticking-map
+        (set-transient-map vertico-timer-map
                            ;; KEEP-PRED
                            nil
                            ;; ON-EXIT
@@ -310,8 +310,8 @@ Disable `i-vertico/timer-mode' beforehand."
   (prefix-command-preserve-state)
 
   ;; Since this fn is called by the timer I would've expected
-  ;; `cancel-timer' to fail. This is in fact not the case. In
-  ;; case that ever changes we swallow the expected error.
+  ;; `cancel-timer' to fail. This is in fact not the case.
+  ;; Should that ever change we swallow the expected error.
   (condition-case _
       (vertico-timer--stop-timer)
     (vertico-timer-not-a-timer nil))
@@ -328,7 +328,7 @@ Disable `i-vertico/timer-mode' beforehand."
   "Make ARG part of the `prefix-arg' if `vertico-indexed-mode' is non-nil.
 Otherwise call `self-insert-command'.
 As opposed to `digital-argument' doesn't activate `universal-argument-map' but
-`vertico-timer-ticking-map'."
+`vertico-timer-map'."
   (interactive "P")
   (if (not vertico-indexed-mode)
       ;; User un-toggled using `vertico-timer-toggle-in-session'
@@ -370,7 +370,7 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
   "Actions registered via `vertico-timer-register-action'.")
 
 (defmacro vertico-timer-register-action (key cmd &optional name prep-key)
-  "Bind CMD to KEY in `vertico-timer-ticking-map'.
+  "Bind CMD to KEY in `vertico-timer-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
 
 If NAME is provided it will be used as the suffix for the name of the
@@ -407,7 +407,7 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
            ,@body)
          (function-put ',cmd 'vertico-timer-action-hint
                        ,(or name (concat "cust-" suffix)))
-         (keymap-set vertico-timer-ticking-map ,key
+         (keymap-set vertico-timer-map ,key
                      #',action-fn-sym)
          ,(when prep-key
             `(keymap-set vertico-map ,prep-key #',prep-fn-sym))))))
@@ -417,7 +417,7 @@ Use `vertico-timer-register-actions' to register multiple actions at once."
 ARGS should be an even number of KEY CMD pairs
 each of which can be followed by keyword options:
 
-  - ':name': The function bound in `vertico-timer-ticking-map'
+  - ':name': The function bound in `vertico-timer-map'
      will be suffixed with the value of this option.
      If nil a lambda will be used instead. This is also the name
      to appear in the action hint.
