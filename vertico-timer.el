@@ -121,7 +121,7 @@
   "Select indexed candidates immediately."
   :group 'external)
 
-(defcustom vertico-timer-timeout-seconds 0.5
+(defcustom vertico-timer-timeout-seconds 0.25
   "How many seconds to wait before running `vertico-timer--action'."
   :type 'number
   :group 'vertico-timer)
@@ -145,7 +145,7 @@
           string)
   :group 'vertico-timer)
 
-(defcustom vertico-timer-key-interaction 'reset
+(defcustom vertico-timer-key-interaction 'none
   "What happens to the timer after a key was pressed.
 Only affects keys bound in `vertico-timer-ticking-map'.
 Default is \\='reset. Resetting the timer makes it easier to change the action
