@@ -164,6 +164,21 @@ Must be \\='(\"0\" \"1\" \"2\" \"3\" \"4\" \"5\" \"6\" \"7\" \"8\" \"9\").")
 '%s' will be replaced with the \\='vertico-timer-action-hint property of
 the current value of `vertico-timer--action'."
   :type '(radio (const :tag "No Action Hint" nil) string)
+  :set
+  (lambda (symbol value)
+    (when value
+      ;; Contain exactly one %s, %%s doesn't count
+      (let* ((without-literals (replace-regexp-in-string "%%" "" value))
+             (count-s (1- (length (split-string without-literals "%s"))))
+             ;; Find any unallowed format parameters
+             (invalid-param (and (string-match "\\(%[^s%]\\)" value)
+                                 (match-string 1 value))))
+        (cond
+         ((/= count-s 1)
+          (error "Value must contain exactly one unescaped \"%%s\""))
+         (invalid-param
+          (error "Invalid format parameter %d" invalid-param)))))
+    (set-default-toplevel-value symbol value))
   :group 'vertico-timer)
 
 (defvar vertico-timer-action-hint-default-format
