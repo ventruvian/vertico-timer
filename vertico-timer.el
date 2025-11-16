@@ -204,8 +204,10 @@ Timer is stored in `vertico-timer--timer'."
 (defun vertico-timer--stop-timer ()
   "Cancel the current timer."
   (funcall vertico-timer--exit-map-fn)
+  (setq vertico-timer--exit-map-fn nil)
   (condition-case er
-      (cancel-timer vertico-timer--timer)
+      (progn (cancel-timer vertico-timer--timer)
+             (setq vertico-timer--timer nil))
     (wrong-type-argument
      (signal 'vertico-timer-no-timer
              (apply #'list 'cancel-timer vertico-timer--timer er)))))
