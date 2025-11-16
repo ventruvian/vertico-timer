@@ -191,7 +191,7 @@ Will be set during `vertico-timer--setup'.")
 (defvar-local vertico-timer--exit-map-fn nil
   "Call this function to exit the transient keymap.")
 
-(define-error 'vertico-timer-no-timer "No timer found")
+(define-error 'vertico-timer-not-a-timer "No timer found")
 
 (defun vertico-timer--start-timer ()
   "Start timer with `vertico-timer-timeout-seconds'.
@@ -205,12 +205,13 @@ Timer is stored in `vertico-timer--timer'."
   "Cancel the current timer."
   (funcall vertico-timer--exit-map-fn)
   (setq vertico-timer--exit-map-fn nil)
-  (condition-case er
-      (progn (cancel-timer vertico-timer--timer)
-             (setq vertico-timer--timer nil))
-    (wrong-type-argument
-     (signal 'vertico-timer-no-timer
-             (apply #'list 'cancel-timer vertico-timer--timer er)))))
+  (unwind-protect
+      (condition-case er
+          (cancel-timer vertico-timer--timer)
+        (wrong-type-argument
+         (signal 'vertico-timer-not-a-timer
+                 (apply #'list 'cancel-timer vertico-timer--timer er))))
+    (setq vertico-timer--timer nil)))
 
 ;; No need to turn `vertico-timer--ticking-mode' off and on
 (defun vertico-timer--reset-timer ()
@@ -313,7 +314,7 @@ Disable `i-vertico/timer-mode' beforehand."
   ;; case that ever changes we swallow the expected error.
   (condition-case _
       (vertico-timer--stop-timer)
-    (vertico-timer-no-timer nil))
+    (vertico-timer-not-a-timer nil))
 
   (unwind-protect ;; Trigger `vertico--prepare'
       (progn (run-hooks 'pre-command-hook)
