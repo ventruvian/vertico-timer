@@ -61,8 +61,8 @@ The package is available at [[https://github.com/VitruvianVice/vertico-timer][ht
 ** straight.el
 
 #+begin_src emacs-lisp
-(straight-use-package
- '(vertico-timer :type git :host github :repo "ventruvian/vertico-timer"))
+(use-package
+  :straight (vertico-timer :type git :host github :repo "ventruvian/vertico-timer"))
 #+end_src
 
 ** Doom Emacs
@@ -77,9 +77,8 @@ Add to your ~packages.el~:
 
 #+begin_src emacs-lisp
 (use-package vertico-timer
-  :elpaca (vertico-timer :host github :repo "ventruvian/vertico-timer")
-  :after vertico
-  :ensure t)
+  :ensure (:host github :repo "ventruvian/vertico-timer")
+  :after vertico)
 #+end_src
 
 * Configuration
