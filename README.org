@@ -311,6 +311,11 @@ Now you will be able to hit ~s-i 3~ to insert the 3rd candidate into the
 minibuffer with leasure or ~s-a 3~ to ~embark-act~ on it (again these keybindings are
 completely made up and not battle-tested).
 
+_NOTE_: [[https://github.com/minad/vertico/blob/main/extensions/vertico-quick.el][vertico-quick]] is probably the more prudent choice for this workflow,
+since it's letter overlays are always easily in reach. A slight counterpoint
+could be that they only appear after hitting the keybinding. In the future I may
+provide an option to switch to vertico-quick with prep-keys.
+
 ** Cyclying Through Actions
 
 Two functions are available to cycle all available exit actions:
