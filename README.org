@@ -4,8 +4,6 @@
 #+EMAIL: vincent.troetschel@mailbox.org
 #+OPTIONS: toc:2 h:2
 
-* Introduction
-
 ~vertico-timer~ is a [[https://github.com/minad/vertico][vertico]] extension that builds on [[https://github.com/minad/vertico/blob/main/extensions/vertico-indexed.el][vertico-indexed]] and around
 the same basic idea of selecting candidates with digit keys. The fastest way to
 =vertico= is usually to narrow the list to one candidate and press ~RET~, however
