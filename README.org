@@ -47,7 +47,7 @@ gives you time to append a second digit to ~prefix-arg~.
 
 - Emacs 29.1 or later
 - vertico
-- vertico-indexed (included in vertico, loaded automatically)
+- vertico-indexed (included in vertico)
 
 * Installation
 :PROPERTIES:
