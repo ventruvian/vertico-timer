@@ -4,6 +4,16 @@
 #+EMAIL: vincent.troetschel@mailbox.org
 #+OPTIONS: toc:2 h:2
 
+In a vertico-session type:
+
+- ~9~ to select the ninth candidate (w/o confirming RET)
+- ~1 1~ to select the 11th
+- ~8 i~ to insert the 8th candidate into the minibuffer
+- ~1 2 a~ to call embark-act on the 12th candidate
+- ~M-i~ regular digit behaviour for the completion-session
+
+* Introduction
+
 ~vertico-timer~ is a [[https://github.com/minad/vertico][vertico]] extension that builds on [[https://github.com/minad/vertico/blob/main/extensions/vertico-indexed.el][vertico-indexed]] and around
 the same basic idea of selecting candidates with digit keys. The fastest way to
 =vertico= is usually to narrow the list to one candidate and press ~RET~, however
@@ -30,7 +40,7 @@ on personal usage-patterns.
 This package concerns itself with more [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][bells and whistles]] but really this covers
 the practical use-case. If you think this functionality can benefit your usage
 and you want to shave off time from completing candidates, I recommend to jump
-over to the [[minimum-configuration][minimal configuration]] after [[id:81665f01-3b3e-40b7-9b83-14b5f1fff2b5][installation]] and get a feel for the
+over to the minimal [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][configuration]] after [[id:81665f01-3b3e-40b7-9b83-14b5f1fff2b5][installation]] and get a feel for the
 basic mechanics before looking at anything fancy.
 
 ** How it works
@@ -226,7 +236,7 @@ When you press ~3 p~ a greeting will appear from the 3rd candidate and if you
 press ~3 a~ you will invoke ~embark-act~ on it. One is probably more useful than the
 other.
 
-Here is a little comparison of keypresses between [[advanced-configuration][this]] configuration of
+Here is a little comparison of keypresses between [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][this]] configuration of
 ~vertico-timer~ and a setup with ~embark~'s [[https://github.com/oantolin/embark?tab=readme-ov-file#quick-start][quick-start]] settings:
 
 | Use Case              | vertico-indexed   | vertico-timer |
@@ -316,19 +326,19 @@ of the global setting.
 
 Summarizing, some possible workflows come to mind, let's name them for pizzazz:
 
-1. *Versatile*: Set a long timer (>0.5s). Prefer exit actions over waiting for
+- Versatile :: Set a long timer (>0.5s). Prefer exit actions over waiting for
    timeout. Use default action on ~RET~, but have custom actions on easy keys for
    versatility.
 
-2. *Speed*: Short timer (~0.25s) and unset timer-reset. Use default action
+- Speed :: Short timer (~0.25s) and unset timer-reset. Use default action
    mostly, let timer confirm selection automatically. Requires fast typing, and
    the timer saves a keypress.
 
-3. *Compromise*: Short timer (~​0.25s), but with ~vertico-timer-key-interaction~
+- Compromise :: Short timer (~​0.25s), but with ~vertico-timer-key-interaction~
    set to ~reset~, allowing the second digit to reset the timer to be able to choose
    an exit action.
 
-4. *Goofy*: Press a ~:prep-key~ first to select an action, then digits to select
+- Goofy :: Press a ~:prep-key~ first to select an action, then digits to select
    candidate. Maybe useful when you know the action but not the candidate yet, e.g.,
    ~embark-become~ before finding the target command. Compatible with ~1.~-~3.~
 
