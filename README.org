@@ -394,10 +394,10 @@ In ~vertico-map~:
   you have a number block) consider binding custom actions to keys accessible
   with the other hand.
 
-* Contributing
+* Contributions
 
-Contributions welcome! Feel free to check the [[https://github.com/ventruvian/vertico-timer/issues][issues page]] or submit a [[https://github.com/ventruvian/vertico-timer/pulls][pull requests]]. I can't
-guarantee when I get to them, but everything is greatly appreciated!
+Contributions welcome! Feel free to check the [[https://github.com/ventruvian/vertico-timer/issues][issues page]] or submit a [[https://github.com/ventruvian/vertico-timer/pulls][pull
+requests]] or edit the [[https://github.com/ventruvian/vertico-timer/wiki][wiki]] to share your custom actions.
 
 * License
 
