@@ -19,11 +19,15 @@ Pay attention to the keys registered in the [[https://github.com/tarsius/keycast
 + Selecting the 10th candidate in a ~find-file~ completion:
 
 #+caption:  Selecting the 10th candidate in a completion
+#+attr_latex: :width 0.55\linewidth
+#+attr_html: :style width:55% :alt Demonstration of a rapid completion
 [[file:screencasts/vertico-timer-basic-2025-11-18-15:33:48.gif]]
 
 + Invoking ~embark-act~ on the 12th variable discovered by ~helpful-variable~:
 
 #+caption: Invoking ~embark-act~ on the 12th candidate
+#+attr_latex: :width 0.55\linewidth
+#+attr_html: :style width:55% :alt Demonstration of an embark-act action
 [[file:screencasts/vertico-timer-act-2025-11-18-15:41:39.gif]]
 
 Recordings are made with ambrevar's [[https://gitlab.com/ambrevar/emacs-gif-screencast][gif-screencast]].
