@@ -14,6 +14,8 @@ In a vertico-session type:
 
 *Example Recordings*:
 
+Pay attention to the keys registered in the [[https://github.com/tarsius/keycast][keycast]] log buffer to the left.
+
 + Selecting the 10th candidate in a ~find-file~ completion:
 
 #+caption:  Selecting the 10th candidate in a completion
@@ -23,6 +25,8 @@ In a vertico-session type:
 
 #+caption: Invoking ~embark-act~ on the 12th candidate
 [[file:screencasts/vertico-timer-act-2025-11-18-15:41:39.gif]]
+
+Recordings are made with ambrevar's [[https://gitlab.com/ambrevar/emacs-gif-screencast][gif-screencast]].
 
 * Introduction
 
