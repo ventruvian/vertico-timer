@@ -14,25 +14,23 @@ In a vertico-session type:
 
 *Example Recordings*:
 
-Pay attention to the keys registered in the [[https://github.com/tarsius/keycast][keycast]] log buffer to the left.
+Pay attention to the keys registered in the [[https://github.com/tarsius/keycast][keycast]] log buffer on the left.
+Recordings are made with ambrevar's [[https://gitlab.com/ambrevar/emacs-gif-screencast][gif-screencast]].
 
-+ Selecting the 10th candidate in a ~find-file~ completion. Keys: ~1 0~, note that
-  no ~RET~ is pressed for confirmation.
++ Selecting the 12th candidate in a ~find-file~ completion. Keys: ~1 2~, note that
+  no ~RET~ is pressed for confirmation (the recorded command with no key-event is
+  the timer executing that action).
 
-#+caption:  Selecting the 10th candidate in a completion
+#+caption:  Selecting the 12th candidate in a completion
 #+attr_latex: :width 0.55\linewidth
-#+attr_html: :style width:55% :alt Demonstration of a rapid completion
-[[file:screencasts/vertico-timer-basic-2025-11-18-15:33:48.gif]]
+[[file:screencasts/vertico-timer-demo-basic.gif]]
 
 + Invoking ~embark-act~ on the 12th variable discovered by ~helpful-variable~.
   Keys: ~1 2 a~.
 
-#+caption: Invoking ~embark-act~ on the 12th candidate
+#+caption: Invoking embark-act on the 12th candidate
 #+attr_latex: :width 0.55\linewidth
-#+attr_html: :style width:55% :alt Demonstration of an embark-act action
-[[file:screencasts/vertico-timer-act-2025-11-18-15:41:39.gif]]
-
-Recordings are made with ambrevar's [[https://gitlab.com/ambrevar/emacs-gif-screencast][gif-screencast]].
+[[file:screencasts/vertico-timer-demo-act.gif]]
 
 * Introduction
 
