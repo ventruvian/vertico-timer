@@ -16,14 +16,16 @@ In a vertico-session type:
 
 Pay attention to the keys registered in the [[https://github.com/tarsius/keycast][keycast]] log buffer to the left.
 
-+ Selecting the 10th candidate in a ~find-file~ completion:
++ Selecting the 10th candidate in a ~find-file~ completion. Keys: ~1 0~, note that
+  no ~RET~ is pressed for confirmation.
 
 #+caption:  Selecting the 10th candidate in a completion
 #+attr_latex: :width 0.55\linewidth
 #+attr_html: :style width:55% :alt Demonstration of a rapid completion
 [[file:screencasts/vertico-timer-basic-2025-11-18-15:33:48.gif]]
 
-+ Invoking ~embark-act~ on the 12th variable discovered by ~helpful-variable~:
++ Invoking ~embark-act~ on the 12th variable discovered by ~helpful-variable~.
+  Keys: ~1 2 a~.
 
 #+caption: Invoking ~embark-act~ on the 12th candidate
 #+attr_latex: :width 0.55\linewidth
