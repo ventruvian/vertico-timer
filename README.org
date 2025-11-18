@@ -12,6 +12,12 @@ In a vertico-session type:
 - ~1 2 a~ to call embark-act on the 12th candidate
 - ~M-i~ regular digit behaviour for the completion-session
 
+#+caption:  Selecting the 10th candidate in a completion
+[[file:screencasts/vertico-timer-basic-2025-11-18-15:33:48.gif]]
+
+#+caption: Invoking ~embark-act~ on the 12th candidate
+[[file:screencasts/vertico-timer-act-2025-11-18-15:41:39.gif]]
+
 * Introduction
 
 ~vertico-timer~ is a [[https://github.com/minad/vertico][vertico]] extension that builds on [[https://github.com/minad/vertico/blob/main/extensions/vertico-indexed.el][vertico-indexed]] and around
@@ -52,6 +58,9 @@ pass that baton to ~vertico-indexed~.
 After receiving the first digit key a timer starts that executes the default
 action on the candidate whose index corresponds to the value of ~prefix-arg~. This
 gives you time to append a second digit to ~prefix-arg~.
+
+The timer can be instructed to reset itself with each keypress this is helpful
+if you define single keys to [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][change the action]] performed on a target.
 
 * Requirements
 
