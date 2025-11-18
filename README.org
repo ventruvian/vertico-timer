@@ -12,8 +12,14 @@ In a vertico-session type:
 - ~1 2 a~ to call embark-act on the 12th candidate
 - ~M-i~ regular digit behaviour for the completion-session
 
+*Example Recordings*:
+
++ Selecting the 10th candidate in a ~find-file~ completion:
+
 #+caption:  Selecting the 10th candidate in a completion
 [[file:screencasts/vertico-timer-basic-2025-11-18-15:33:48.gif]]
+
++ Invoking ~embark-act~ on the 12th variable discovered by ~helpful-variable~:
 
 #+caption: Invoking ~embark-act~ on the 12th candidate
 [[file:screencasts/vertico-timer-act-2025-11-18-15:41:39.gif]]
