@@ -57,10 +57,10 @@ numbers) and removes it from the common case (selecting candidates). You may
 find you barely ever need to input numbers into the minibuffer, but this depends
 on personal usage-patterns.
 
-This package concerns itself with more [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][bells and whistles]] but really this covers
+This package concerns itself with more [[changing-the-action-on-the-target][bells and whistles]] but really this covers
 the practical use-case. If you think this functionality can benefit your usage
 and you want to shave off time from completing candidates, I recommend to jump
-over to the minimal [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][configuration]] after [[id:81665f01-3b3e-40b7-9b83-14b5f1fff2b5][installation]] and get a feel for the
+over to the minimal [[#configuration][configuration]] after [[#installation][installation]] and get a feel for the
 basic mechanics before looking at anything fancy.
 
 ** How it works
@@ -74,7 +74,7 @@ action on the candidate whose index corresponds to the value of ~prefix-arg~. Th
 gives you time to append a second digit to ~prefix-arg~.
 
 The timer can be instructed to reset itself with each keypress this is helpful
-if you define single keys to [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][change the action]] performed on a target.
+if you define single keys to [[#changing-the-action-on-the-target][change the action]] performed on a target.
 
 * Requirements
 
@@ -84,7 +84,7 @@ if you define single keys to [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][change t
 
 * Installation
 :PROPERTIES:
-:ID:       81665f01-3b3e-40b7-9b83-14b5f1fff2b5
+:CUSTOM_ID: installation
 :END:
 
 The package is available at [[https://github.com/VitruvianVice/vertico-timer][https://github.com/ventruvian/vertico-timer]].
@@ -114,7 +114,7 @@ Add to your ~packages.el~:
 
 * Configuration
 :PROPERTIES:
-:ID:       79a72d25-a6a6-47ff-ba24-29d5a955f194
+:CUSTOM_ID: configuration
 :END:
 
 Configuring the timer as well as a session toggle is strongly recommended. It is
@@ -136,7 +136,7 @@ A minimum recommended configuration:
   :hook (vertico-mode . vertico-timer-mode))
 #+end_src
 
-A more advanced configuration utilizing changes to the [[id:02bcd4b7-4815-4e2a-96c4-af2c12a805ee][exit action]]:
+A more advanced configuration utilizing changes to the [[#changing-the-action-on-the-target][exit action]]:
 
 #+name: advanced-configuration
 #+begin_src emacs-lisp
@@ -223,7 +223,7 @@ input digits as text), bind ~vertico-timer-toggle-in-session~.
 
 ** Changing the Action on the Target
 :PROPERTIES:
-:ID:       02bcd4b7-4815-4e2a-96c4-af2c12a805ee
+:CUSTOM_ID: changing-the-action-on-the-target
 :END:
 
 For the period the timer runs a high-precedence keymap (a transient map) is
@@ -259,7 +259,7 @@ When you press ~3 p~ a greeting will appear from the 3rd candidate and if you
 press ~3 a~ you will invoke ~embark-act~ on it. One is probably more useful than the
 other.
 
-Here is a little comparison of keypresses between [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][this]] configuration of
+Here is a little comparison of keypresses between [[#configuration][this]] configuration of
 ~vertico-timer~ and a setup with ~embark~'s [[https://github.com/oantolin/embark?tab=readme-ov-file#quick-start][quick-start]] settings:
 
 | Use Case              | vertico-indexed   | vertico-timer |
@@ -310,7 +310,7 @@ hint set a name as well.
 
 ** Preparing an Action
 :PROPERTIES:
-:ID:       b4da6be3-9dcd-4ccc-960b-5a7cfbf46591
+:CUSTOM_ID: prepare-an-action
 :END:
 
 You can also prepare an action if you know you want to change it but haven't
@@ -389,8 +389,8 @@ Summarizing, some possible workflows come to mind, let's name them for pizzazz:
 * Keybindings
 
 Two keymaps are relevant for this package:
-- vertico-map :: For all commands that [[id:b4da6be3-9dcd-4ccc-960b-5a7cfbf46591][prepare an action]] as well as for the session-toggle.
-  This package doesn't bind to ~vertico-map~ on it's own but you [[id:79a72d25-a6a6-47ff-ba24-29d5a955f194][are suggested]] to
+- vertico-map :: For all commands that [[#prepare-an-action][prepare an action]] as well as for the session-toggle.
+  This package doesn't bind to ~vertico-map~ on it's own but you [[#configuration][are adviced]] to
   bind some keys there to be able to use this package effectively. The
   ~:prep-key~ binding passed to ~vertico-timer-register-actions~ will end up in this map.
 - vertico-timer-map :: All command active during the timer-duration.
