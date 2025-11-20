@@ -89,13 +89,6 @@ if you define single keys to [[#changing-the-action-on-the-target][change the ac
 
 The package is available at [[https://github.com/VitruvianVice/vertico-timer][https://github.com/ventruvian/vertico-timer]].
 
-** straight.el
-
-#+begin_src emacs-lisp
-(use-package
-  :straight (vertico-timer :type git :host github :repo "ventruvian/vertico-timer"))
-#+end_src
-
 ** Doom Emacs
 
 Add to your ~packages.el~:
@@ -110,6 +103,13 @@ Add to your ~packages.el~:
 (use-package vertico-timer
   :ensure (:host github :repo "ventruvian/vertico-timer")
   :after vertico)
+#+end_src
+
+** straight.el
+
+#+begin_src emacs-lisp
+(use-package vertico-timer
+  :straight (:host github :repo "ventruvian/vertico-timer"))
 #+end_src
 
 * Configuration
