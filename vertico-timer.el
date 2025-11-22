@@ -107,7 +107,7 @@
 ;;; Todos:
 ;;
 ;;  - TODO Add a keybinding to interrupt the timer and do nothing
-;;  - TODO Bind SPC in vertico-timer-map to `embark-select' and multi-act by default
+;;
 ;;; Code:
 
 (require 'vertico)

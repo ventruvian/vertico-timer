@@ -142,7 +142,7 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
 #+begin_src emacs-lisp
 (use-package vertico-timer
 
-  :custom
+  :custom ; in doom prefer `setq!' over :custom
   ;; Tell the timer which action you run most often
   (vertico-timer-default-action #'vertico-directory-enter)
   ;; Seconds to wait before executing the action
@@ -167,9 +167,9 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
               ("s-<left>"  . vertico-timer-cycle-actions-backward))
 
   :config
-  ;; Activate the action hint in the minibuffer
+  ;; Activate the action hint in the minibuffer (in doom prefer `setq!')
   (setopt vertico-timer-action-hint-format
-   vertico-timer-action-hint-default-format)
+          vertico-timer-action-hint-default-format)
 
   ;; embark-become acts on the input not the candidate so we insert first
   (defun i/embark-become ()
@@ -179,6 +179,7 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
 
   ;; Call embark-act by pressing "a" after digits or "s-a" before
   (vertico-timer-register-actions
+   "SPC" embark-select :name "select"
    "a" embark-act :name "act" :prep-key "s-a"
    "b" i/embark-become :name "become" :prep-key "s-b"))
 #+end_src
