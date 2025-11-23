@@ -107,6 +107,8 @@
 ;;; Todos:
 ;;
 ;;  - TODO Add a keybinding to interrupt the timer and do nothing
+;;  - TODO Change keep mechanism to look up actions in an alist
+;;    instead of setting a buf-local variable.
 ;;
 ;;; Code:
 
@@ -185,7 +187,7 @@ the current value of `vertico-timer--action'."
   (concat
    (propertize " | " 'face 'shadow)
    (propertize "⏲ " 'face 'font-lock-comment-face)
-   (propertize "%s" 'face 'font-lock-constant-face)
+   (propertize "%s"  'face 'font-lock-constant-face)
    (propertize " | " 'face 'shadow))
   "Default action hint format.
 Fallback for when the user has disabled the hint but wants to cycle actions.
@@ -319,6 +321,9 @@ Interaction is determined by `vertico-timer-key-interaction'."
                            ;; ON-EXIT
                            (lambda () (setq vertico-timer-ticking-mode nil)))))
 
+(defvar-local vertico-timer--keep-action nil
+  "If non-nil persist the action for the duration of the minibuffer session.")
+
 (defun vertico-timer--run-action ()
   "Call `vertico-timer--action' on the selection.
 Disable `i-vertico/timer-mode' beforehand."
@@ -337,7 +342,8 @@ Disable `i-vertico/timer-mode' beforehand."
              (run-hooks 'post-command-hook))
     ;; Reset the default action in case previous one was non-exiting
     ;; Run as unwindform in case the action was cancelled
-    (vertico-timer--set-action vertico-timer-default-action)))
+    (unless vertico-timer--keep-action
+      (vertico-timer--set-action vertico-timer-default-action))))
 
 (defun vertico-timer--first-digit (arg)
   "Make ARG part of the `prefix-arg' if `vertico-indexed-mode' is non-nil.
@@ -384,7 +390,7 @@ As opposed to `digital-argument' doesn't activate `universal-argument-map' but
 (defvar vertico-timer--user-registered-actions nil
   "Actions registered via `vertico-timer-register-action'.")
 
-(defmacro vertico-timer-register-action (key cmd &optional name prep-key)
+(defmacro vertico-timer-register-action (key cmd &optional name prep-key keep)
   "Bind CMD to KEY in `vertico-timer-map'.
 KEY can be used to invoke CMD on the candidate before the timer runs out.
 
@@ -395,37 +401,44 @@ NAME will also show up in the action-hint overlay.
 If PREP-KEY is provided an additional command will be bound `vertico-map'.
 Invoking that command will set `vertico-timer--action' ahead of keypresses.
 
+For actions that don't exit the minibuffer KEEP can be set to a non-nil value.
+In that case the action will persist for the entirety of the minibuffer session.
+
 Use `vertico-timer-register-actions' to register multiple actions at once."
   (unless (key-valid-p (eval key))
     (error "KEY %s doesn't satisfy `key-valid-p'" key))
-  (unless (or (not prep-key) (key-valid-p (eval prep-key)))
+  (when (and prep-key (not (key-valid-p (eval prep-key))))
     (error "KEY %s doesn't satisfy `key-valid-p'" prep-key))
   (when (or (and name (not (stringp name))) (string-empty-p name))
     (error "Name must be a non-empty string or nil"))
-  (let ((body `((interactive)
-                (prefix-command-preserve-state)
-                (vertico-timer--set-action #',cmd)
-                (vertico-timer--run-action))))
-    (let* ((suffix (or name (symbol-name (gensym))))
-           (action-fn-sym
-            (intern (concat "vertico-timer-action-" suffix)))
-           (prep-fn-sym
-            (intern (concat "vertico-timer-prep-action-" suffix))))
-      `(progn
-         (unless (memq #',cmd vertico-timer--user-registered-actions)
-           (push #',cmd vertico-timer--user-registered-actions))
-         ,(when prep-key
-            `(defun ,prep-fn-sym ()
-               (interactive)
-               (vertico-timer--set-action #',cmd)))
-         (defun ,action-fn-sym ()
-           ,@body)
-         (function-put ',cmd 'vertico-timer-action-hint
-                       ,(or name (concat "cust-" suffix)))
-         (keymap-set vertico-timer-map ,key
-                     #',action-fn-sym)
-         ,(when prep-key
-            `(keymap-set vertico-map ,prep-key #',prep-fn-sym))))))
+  (let* ((suffix (or name (symbol-name (gensym))))
+         (action-fn-sym
+          (intern (concat "vertico-timer-action-" suffix)))
+         (prep-fn-sym
+          (intern (concat "vertico-timer-prep-action-" suffix)))
+         (prep-fn-body `((vertico-timer--set-action #',cmd)
+                         (setq vertico-timer--keep-action ,keep)))
+         (body `((interactive)
+                 (prefix-command-preserve-state)
+                 ,(if prep-key
+                      `(,prep-fn-sym)
+                    `(progn ,@prep-fn-body))
+                 (vertico-timer--run-action))))
+    `(progn
+       (unless (memq #',cmd vertico-timer--user-registered-actions)
+         (push #',cmd vertico-timer--user-registered-actions))
+       ,(when prep-key
+          `(defun ,prep-fn-sym ()
+             (interactive)
+             ,@prep-fn-body))
+       (defun ,action-fn-sym ()
+         ,@body)
+       (function-put ',cmd 'vertico-timer-action-hint
+                     ,(or name (concat "cust-" suffix)))
+       (keymap-set vertico-timer-map ,key
+                   #',action-fn-sym)
+       ,(when prep-key
+          `(keymap-set vertico-map ,prep-key #',prep-fn-sym)))))
 
 (defmacro vertico-timer-register-actions (&rest args)
   "Register multiple actions using key-cmd pairs.
@@ -438,21 +451,27 @@ each of which can be followed by keyword options:
      to appear in the action hint.
   - ':prep-key': An additional command will be bound to this key
      in `vertico-map'. This command will allow to set
-     `vertico-timer--action' before the timer starts."
+     `vertico-timer--action' before the timer starts.
+  - ':keep': If non-nil the action will not reset to default after
+     it is invoked. This can be useful for actions that don't exit
+     the minibuffer like `embark-select'."
   (unless (zerop (% (length args) 2))
     (error "Arguments must be in KEY CMD pairs (even number of arguments)"))
   (let (forms)
     (while args
       (let* ((key (pop args))
              (cmd (pop args))
-             name prep-key)
+             name prep-key keep)
         ;; Check if next argument is :name
         (when (and args (eq (car args) :name))
           (pop args) (setq name (pop args)))
         ;; Check if next argument is :prep-key
         (when (and args (eq (car args) :prep-key))
           (pop args) (setq prep-key (pop args)))
-        (push `(vertico-timer-register-action ,key ,cmd ,name ,prep-key) forms)))
+        ;; Check if next argument is :keep
+        (when (and args (eq (car args) :keep))
+          (pop args) (setq keep (pop args)))
+        (push `(vertico-timer-register-action ,key ,cmd ,name ,prep-key ,keep) forms)))
     `(progn ,@(nreverse forms))))
 
 

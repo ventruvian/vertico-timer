@@ -179,9 +179,9 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
 
   ;; Call embark-act by pressing "a" after digits or "s-a" before
   (vertico-timer-register-actions
-   "SPC" embark-select :name "select"
    "a" embark-act :name "act" :prep-key "s-a"
-   "b" i/embark-become :name "become" :prep-key "s-b"))
+   "b" i/embark-become :name "become" :prep-key "s-b"
+   "SPC" embark-select :name "select" :prep-key "M-SPC" :keep t))
 #+end_src
 
 _Note_: The keybindings presented here are not a recommendation, I use totally
@@ -286,11 +286,12 @@ minibuffer. The default will get you started:
 
 #+begin_src emacs-lisp
 (setopt vertico-timer-action-hint-format
-   vertico-timer-action-hint-default-format)
+        vertico-timer-action-hint-default-format)
 #+end_src
 
-Using ~setopt~ will validate the string first, if you use ~setq~ you have to ensure
-that your string contains exactly one ~%s~ as the format parameter.
+Using ~setopt~ (or ~setq!~ in doomland) will validate the string first, if you use
+~setq~ you have to ensure that your string contains exactly one ~%s~ as the format
+parameter.
 
 The name shown is the value of the ~:name~ key in ~vertico-timer-register-actions~.
 So in the example from earlier add:
@@ -339,6 +340,35 @@ _NOTE_: [[https://github.com/minad/vertico/blob/main/extensions/vertico-quick.el
 since it's letter overlays are always easily in reach. A slight counterpoint
 could be that they only appear after hitting the keybinding. In the future I may
 provide an option to switch to vertico-quick with prep-keys.
+
+** Preserving an Action throughout the Session
+
+You may define an action that doesn't exit the minibuffer (say ~embark-select~).
+By default ~vertico-timer~ reset's the action back to default each time it runs
+it. However you may want to run that same operation again.
+
+For example if you are in a ~consult-yank-pop~ session and you want to
+~embark-select~ a couple of candidates for bulk insertion with ~embark-act-all~ then
+it is bothersome to have to hit =SPC= after each digit again or prep the action in
+between digit keypresses. Instead you can define the action to stay active by
+passing a ~:keep~ keyword argument to ~vertico-timer-register-actions~. If any such
+action is switched to it will stick around as long as the minibuffer is active.
+
+#+begin_src emacs-lisp
+(vertico-timer-register-actions
+ "SPC" embark-select :keep t)
+#+end_src
+
+So in the ~yank-pop~ example you would hit: =M-y 3 SPC 4 5 6= to mark 4 candidates and yank
+them all into the buffer with ~embark-act-all~.
+
+This goes particularly well with a prep-key, with the below configuration you
+can =M-y M-SPC 3 4 5 6= to achieve the same result.
+
+#+begin_src emacs-lisp
+(vertico-timer-register-actions
+ "SPC" embark-select :prep-key "M-SPC" :keep t)
+#+end_src
 
 ** Cyclying Through Actions
 
