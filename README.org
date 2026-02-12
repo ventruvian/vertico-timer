@@ -172,7 +172,7 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
           vertico-timer-action-hint-default-format)
 
   ;; embark-become acts on the input not the candidate so we insert first
-  (defun i/embark-become ()
+  (defun +vt-become ()
     (interactive)
     (vertico-insert)
     (call-interactively #'embark-become))
@@ -180,7 +180,7 @@ A more advanced configuration utilizing changes to the [[#changing-the-action-on
   ;; Call embark-act by pressing "a" after digits or "s-a" before
   (vertico-timer-register-actions
    "a" embark-act :name "act" :prep-key "s-a"
-   "b" i/embark-become :name "become" :prep-key "s-b"
+   "b" +vt-become :name "become" :prep-key "s-b"
    "SPC" embark-select :name "select" :prep-key "M-SPC" :keep t))
 #+end_src
 
@@ -362,7 +362,7 @@ action is switched to it will stick around as long as the minibuffer is active.
 So in the ~yank-pop~ example you would hit: =M-y 3 SPC 4 5 6= to mark 4 candidates and yank
 them all into the buffer with ~embark-act-all~.
 
-This goes particularly well with a prep-key, with the below configuration you
+Although the mental model fits a prep-key better, with the below configuration you
 can =M-y M-SPC 3 4 5 6= to achieve the same result.
 
 #+begin_src emacs-lisp
@@ -376,7 +376,7 @@ Two functions are available to cycle all available exit actions:
 - ~vertico-timer-cycle-actions-forward~
 - ~vertico-timer-cycle-actions-backward~
 
-If you want you can bind them, but cycling through things never
+They do wrap around so you can only bind one of them. Cycling never
 encourages speed, but they may aid in discovery of the functionality. If you
 invoke a cycle command the action hint will display for the session regardless
 of the global setting.

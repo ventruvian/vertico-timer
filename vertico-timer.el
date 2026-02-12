@@ -547,6 +547,9 @@ each of which can be followed by keyword options:
   (unless (memq 'vertico-timer--first-digit vertico-indexed--commands)
     (push 'vertico-timer--first-digit vertico-indexed--commands))
 
+  ;; Ensure default action is updated if the user changed it
+  (setq-default vertico-timer--action vertico-timer-default-action)
+
   ;; Set display hint for default actions
   (function-put vertico-timer-default-action
                 'vertico-timer-action-hint vertico-timer-default-action-hint)
